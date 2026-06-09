@@ -25,6 +25,16 @@
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.14"
   },
+  "build": {
+    "appId": "com.volleyball.scouting",
+    "productName": "Volleyball Scouting",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ]
+  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/better-sqlite3": "^7.6.13",
@@ -39,7 +49,7 @@
     "playwright": "^1.60.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3",
+    "typescript": "^5.9.3",
     "vite": "^6.4.3",
     "vitest": "^4.1.8"
   }
