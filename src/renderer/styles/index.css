@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+input, textarea, button, select {
+  -webkit-app-region: no-drag;
+  user-select: text;
+}
