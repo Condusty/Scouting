@@ -1,9 +1,6 @@
 import Database from 'better-sqlite3';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`
