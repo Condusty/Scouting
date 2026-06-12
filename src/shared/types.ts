@@ -89,3 +89,21 @@ export type CreateSeasonDTO  = Omit<Season,     'id' | 'created_at'>;
 export type CreateTeamDTO    = Omit<TeamRecord, 'id' | 'created_at'>;
 export type CreatePlayerDTO  = Omit<Player,     'id' | 'created_at'>;
 export type CreateMatchDTO   = Omit<Match,      'id' | 'created_at'>;
+
+export interface MatchRow extends Match {
+  home_team_name: string;
+  away_team_name: string;
+}
+
+export interface MatchDetail extends Match {
+  home_team: TeamRecord;
+  away_team: TeamRecord;
+}
+
+export interface RosterEntryInput {
+  team_id: number;
+  player_id: number;
+  shirt_number: number;
+  is_libero: boolean;
+  is_setter: boolean;
+}

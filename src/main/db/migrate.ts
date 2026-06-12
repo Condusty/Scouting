@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import migration001 from './migrations/001_initial.sql?raw';
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`
@@ -11,7 +10,7 @@ export function runMigrations(db: Database.Database): void {
   `);
 
   const migrations = [
-    { version: 1, file: '001_initial.sql' },
+    { version: 1, sql: migration001 },
   ];
 
   const applied = new Set(
@@ -21,8 +20,7 @@ export function runMigrations(db: Database.Database): void {
 
   for (const m of migrations) {
     if (applied.has(m.version)) continue;
-    const sql = readFileSync(join(__dirname, 'migrations', m.file), 'utf-8');
-    db.exec(sql);
+    db.exec(m.sql);
     db.prepare('INSERT INTO migrations(version) VALUES (?)').run(m.version);
   }
 }
