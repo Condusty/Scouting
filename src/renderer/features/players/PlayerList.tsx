@@ -7,6 +7,7 @@ import { Button, IconButton } from '@renderer/components/ui/Button';
 import { DataTable } from '@renderer/components/ui/DataTable';
 import { EmptyState } from '@renderer/components/ui/EmptyState';
 import { Dialog } from '@renderer/components/ui/Dialog';
+import { ConfirmDialog } from '@renderer/components/ui/ConfirmDialog';
 import { PlayerForm, emptyPlayer, playerToForm, type PlayerFormValues } from './PlayerForm';
 
 export function PlayerList() {
@@ -14,6 +15,7 @@ export function PlayerList() {
   const [open, setOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<PlayerFormValues>(emptyPlayer());
+  const [deleteTarget, setDeleteTarget] = React.useState<Player | null>(null);
 
   React.useEffect(() => {
     load();
@@ -79,7 +81,7 @@ export function PlayerList() {
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Spieler „${p.last_name}" löschen?`)) remove(p.id);
+                    setDeleteTarget(p);
                   }}
                   aria-label="Löschen"
                 >
@@ -107,6 +109,16 @@ export function PlayerList() {
       >
         <PlayerForm values={form} onChange={setForm} />
       </Dialog>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title="Spieler löschen"
+        description={`Spieler „${deleteTarget?.last_name}, ${deleteTarget?.first_name}" wirklich löschen?`}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) remove(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </Page>
   );
 }

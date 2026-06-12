@@ -7,6 +7,7 @@ import { Button, IconButton } from '@renderer/components/ui/Button';
 import { DataTable } from '@renderer/components/ui/DataTable';
 import { EmptyState } from '@renderer/components/ui/EmptyState';
 import { Dialog } from '@renderer/components/ui/Dialog';
+import { ConfirmDialog } from '@renderer/components/ui/ConfirmDialog';
 import { SeasonForm, emptySeason, seasonToForm, type SeasonFormValues } from './SeasonForm';
 
 export function SeasonList() {
@@ -14,6 +15,7 @@ export function SeasonList() {
   const [open, setOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<SeasonFormValues>(emptySeason());
+  const [deleteTarget, setDeleteTarget] = React.useState<Season | null>(null);
 
   React.useEffect(() => {
     load();
@@ -71,7 +73,7 @@ export function SeasonList() {
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Saison „${s.name}" löschen?`)) remove(s.id);
+                    setDeleteTarget(s);
                   }}
                   aria-label="Löschen"
                 >
@@ -99,6 +101,16 @@ export function SeasonList() {
       >
         <SeasonForm values={form} onChange={setForm} />
       </Dialog>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title="Saison löschen"
+        description={`Saison „${deleteTarget?.name}" wirklich löschen?`}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) remove(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </Page>
   );
 }

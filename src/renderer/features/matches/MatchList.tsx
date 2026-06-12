@@ -8,6 +8,7 @@ import { Button, IconButton } from '@renderer/components/ui/Button';
 import { DataTable } from '@renderer/components/ui/DataTable';
 import { EmptyState } from '@renderer/components/ui/EmptyState';
 import { Dialog } from '@renderer/components/ui/Dialog';
+import { ConfirmDialog } from '@renderer/components/ui/ConfirmDialog';
 import { MatchForm, emptyMatch, type MatchFormValues } from './MatchForm';
 import { matchesApi } from '@renderer/api/matches.api';
 
@@ -17,6 +18,7 @@ export function MatchList() {
   const [open, setOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<MatchFormValues>(emptyMatch());
+  const [deleteTarget, setDeleteTarget] = React.useState<MatchRow | null>(null);
 
   React.useEffect(() => {
     load();
@@ -95,7 +97,7 @@ export function MatchList() {
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm('Spiel löschen?')) remove(m.id);
+                    setDeleteTarget(m);
                   }}
                   aria-label="Löschen"
                 >
@@ -123,6 +125,20 @@ export function MatchList() {
       >
         <MatchForm values={form} teams={teams} onChange={setForm} />
       </Dialog>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title="Spiel löschen"
+        description={
+          deleteTarget
+            ? `Spiel „${deleteTarget.home_team_name} vs ${deleteTarget.away_team_name}" wirklich löschen?`
+            : ''
+        }
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) remove(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </Page>
   );
 }

@@ -7,6 +7,7 @@ import { Button, IconButton } from '@renderer/components/ui/Button';
 import { DataTable } from '@renderer/components/ui/DataTable';
 import { EmptyState } from '@renderer/components/ui/EmptyState';
 import { Dialog } from '@renderer/components/ui/Dialog';
+import { ConfirmDialog } from '@renderer/components/ui/ConfirmDialog';
 import { TeamForm, emptyTeam, teamToForm, type TeamFormValues } from './TeamForm';
 import { TeamRoster } from './TeamRoster';
 
@@ -16,6 +17,7 @@ export function TeamList() {
   const [editId, setEditId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<TeamFormValues>(emptyTeam());
   const [rosterTeam, setRosterTeam] = React.useState<TeamRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<TeamRecord | null>(null);
 
   React.useEffect(() => {
     load();
@@ -82,7 +84,7 @@ export function TeamList() {
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Team „${t.name}" löschen?`)) remove(t.id);
+                      setDeleteTarget(t);
                     }}
                     aria-label="Löschen"
                   >
@@ -112,6 +114,16 @@ export function TeamList() {
         <TeamForm values={form} onChange={setForm} />
       </Dialog>
       {rosterTeam && <TeamRoster team={rosterTeam} onClose={() => setRosterTeam(null)} />}
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title="Team löschen"
+        description={`Team „${deleteTarget?.name}" wirklich löschen?`}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) remove(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </Page>
   );
 }
