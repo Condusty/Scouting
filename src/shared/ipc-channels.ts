@@ -18,6 +18,7 @@ export const IPC = {
 
   ROSTER_GET:           'roster:get',
   ROSTER_ADD_PLAYER:    'roster:add-player',
+  ROSTER_UPDATE:        'roster:update',
   ROSTER_REMOVE_PLAYER: 'roster:remove-player',
 
   MATCHES_LIST:   'matches:list',
