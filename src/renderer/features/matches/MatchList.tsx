@@ -94,7 +94,7 @@ export function MatchList() {
             {
               key: 'actions',
               header: '',
-              className: 'w-12 text-right',
+              className: 'w-20 text-right',
               render: (m) => (
                 <div className="flex items-center justify-end gap-1">
                   <IconButton
