@@ -29,6 +29,7 @@ export const IPC = {
 
   RALLY_CREATE:   'rally:create',
   RALLY_DELETE:   'rally:delete',
+  RALLIES_LIST:   'rallies:list',
   ACTION_CREATE:  'action:create',
   ACTION_DELETE:  'action:delete',
   ACTION_INSERT:  'action:insert',

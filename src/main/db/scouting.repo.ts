@@ -1,34 +1,13 @@
 import type Database from 'better-sqlite3';
-import type { Rally, Action, ParsedAction, TeamSide } from '@shared/types';
+import type {
+  Rally,
+  Action,
+  ParsedAction,
+  CreateRallyDTO,
+  CreateSubstitutionDTO,
+  CreateTimeoutDTO,
+} from '@shared/types';
 import { mapDbError } from './errors';
-
-export interface CreateRallyDTO {
-  matchId: number;
-  setNumber: number;
-  rallyNumber: number;
-  rotationHome: number | null;
-  rotationAway: number | null;
-  pointTeam: TeamSide | null;
-  homeScoreAfter: number | null;
-  awayScoreAfter: number | null;
-  rawInput: string | null;
-}
-
-export interface CreateSubstitutionDTO {
-  matchId: number;
-  setNumber: number;
-  afterRally: number;
-  team: TeamSide;
-  playerOutNum: number;
-  playerInNum: number;
-}
-
-export interface CreateTimeoutDTO {
-  matchId: number;
-  setNumber: number;
-  afterRally: number;
-  team: TeamSide;
-}
 
 function getRally(db: Database.Database, id: number): Rally {
   const rally = db.prepare('SELECT * FROM rallies WHERE id = ?').get(id) as Rally;

@@ -126,6 +126,34 @@ export interface ParsedSub {
   in: number;
 }
 
+export interface CreateRallyDTO {
+  matchId: number;
+  setNumber: number;
+  rallyNumber: number;
+  rotationHome: number | null;
+  rotationAway: number | null;
+  pointTeam: TeamSide | null;
+  homeScoreAfter: number | null;
+  awayScoreAfter: number | null;
+  rawInput: string | null;
+}
+
+export interface CreateSubstitutionDTO {
+  matchId: number;
+  setNumber: number;
+  afterRally: number;
+  team: TeamSide;
+  playerOutNum: number;
+  playerInNum: number;
+}
+
+export interface CreateTimeoutDTO {
+  matchId: number;
+  setNumber: number;
+  afterRally: number;
+  team: TeamSide;
+}
+
 export interface ParsedRally {
   actions: ParsedAction[];
   subs: ParsedSub[];

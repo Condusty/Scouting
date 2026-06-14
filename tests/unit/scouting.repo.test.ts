@@ -11,11 +11,14 @@ import {
   deleteRally,
   createSubstitution,
   createTimeout,
-  type CreateRallyDTO,
-  type CreateSubstitutionDTO,
-  type CreateTimeoutDTO,
 } from '../../src/main/db/scouting.repo';
-import type { ParsedAction, CreateMatchDTO } from '@shared/types';
+import type {
+  ParsedAction,
+  CreateMatchDTO,
+  CreateRallyDTO,
+  CreateSubstitutionDTO,
+  CreateTimeoutDTO,
+} from '@shared/types';
 
 function freshDb() {
   const db = new Database(':memory:');
