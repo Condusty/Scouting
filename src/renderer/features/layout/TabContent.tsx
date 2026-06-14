@@ -5,6 +5,7 @@ import { SeasonList } from '@renderer/features/seasons/SeasonList';
 import { TeamList } from '@renderer/features/teams/TeamList';
 import { PlayerList } from '@renderer/features/players/PlayerList';
 import { MatchList } from '@renderer/features/matches/MatchList';
+import { ScoutingView } from '@renderer/features/scouting/ScoutingView';
 
 export function TabContent() {
   const { tabs, activeTabId } = useUIStore();
@@ -25,6 +26,8 @@ export function TabContent() {
       return <PlayerList />;
     case 'match':
       return <MatchList />;
+    case 'scouting':
+      return <ScoutingView matchId={active.params.matchId as number} />;
     case 'report':
       return (
         <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
