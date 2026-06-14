@@ -1,0 +1,249 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import Database from 'better-sqlite3';
+import { runMigrations } from '../../src/main/db/migrate';
+import { createTeam } from '../../src/main/db/teams.repo';
+import { createPlayer } from '../../src/main/db/players.repo';
+import { addRosterPlayer } from '../../src/main/db/roster.repo';
+import { createMatch } from '../../src/main/db/matches.repo';
+import {
+  createRally,
+  listRallies,
+  deleteRally,
+  createSubstitution,
+  createTimeout,
+  type CreateRallyDTO,
+  type CreateSubstitutionDTO,
+  type CreateTimeoutDTO,
+} from '../../src/main/db/scouting.repo';
+import type { ParsedAction, CreateMatchDTO } from '@shared/types';
+
+function freshDb() {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys = ON');
+  runMigrations(db);
+  return db;
+}
+
+function baseMatch(home: number, away: number): CreateMatchDTO {
+  return {
+    season_id: null,
+    home_team_id: home,
+    away_team_id: away,
+    match_date: '2026-01-15',
+    venue: 'Halle 1',
+    video_path: null,
+    video_offset_ms: 0,
+    comment: null,
+    dvw_source_file: null,
+  };
+}
+
+function baseRallyDto(matchId: number): CreateRallyDTO {
+  return {
+    matchId,
+    setNumber: 1,
+    rallyNumber: 1,
+    rotationHome: 1,
+    rotationAway: 1,
+    pointTeam: 'home',
+    homeScoreAfter: 1,
+    awayScoreAfter: 0,
+    rawInput: null,
+  };
+}
+
+describe('scouting.repo', () => {
+  let db: Database.Database;
+  let matchId: number;
+  let homePlayerId: number;
+  let awayPlayerId: number;
+
+  beforeEach(() => {
+    db = freshDb();
+    const home = createTeam(db, { name: 'Home', code: 'HOM', coach: null });
+    const away = createTeam(db, { name: 'Away', code: 'AWY', coach: null });
+
+    const homePlayer = createPlayer(db, {
+      code: 'H7',
+      first_name: 'Home',
+      last_name: 'Seven',
+      position: null,
+      height_cm: null,
+      weight_kg: null,
+      reach_cm: null,
+      photo_path: null,
+    });
+    const awayPlayer = createPlayer(db, {
+      code: 'A3',
+      first_name: 'Away',
+      last_name: 'Three',
+      position: null,
+      height_cm: null,
+      weight_kg: null,
+      reach_cm: null,
+      photo_path: null,
+    });
+
+    addRosterPlayer(db, {
+      team_id: home.id,
+      player_id: homePlayer.id,
+      shirt_number: 7,
+      is_libero: false,
+      is_setter: false,
+    });
+    addRosterPlayer(db, {
+      team_id: away.id,
+      player_id: awayPlayer.id,
+      shirt_number: 3,
+      is_libero: false,
+      is_setter: false,
+    });
+
+    homePlayerId = homePlayer.id;
+    awayPlayerId = awayPlayer.id;
+
+    const m = createMatch(db, baseMatch(home.id, away.id));
+    matchId = m.id;
+  });
+
+  it('creates a rally with one action and resolves player_id from roster', () => {
+    const actions: ParsedAction[] = [
+      {
+        team: 'home',
+        playerNumber: 7,
+        skill: 'R',
+        skillSubtype: null,
+        startZone: 1,
+        endZone: null,
+        effect: '#',
+        rawToken: '7R#1',
+      },
+    ];
+
+    const dto = baseRallyDto(matchId);
+    const rally = createRally(db, dto, actions);
+
+    expect(rally.match_id).toBe(matchId);
+    expect(rally.set_number).toBe(1);
+    expect(rally.rally_number).toBe(1);
+    expect(rally.actions).toHaveLength(1);
+    expect(rally.actions[0].player_number).toBe(7);
+    expect(rally.actions[0].player_id).toBe(homePlayerId);
+    expect(rally.actions[0].skill).toBe('R');
+    expect(rally.actions[0].effect).toBe('#');
+    expect(rally.actions[0].raw_token).toBe('7R#1');
+
+    const fetched = listRallies(db, matchId, 1);
+    expect(fetched).toHaveLength(1);
+    expect(fetched[0].actions[0].player_id).toBe(homePlayerId);
+    expect(fetched[0].actions[0].player_number).toBe(7);
+  });
+
+  it('sets player_id to null when shirt number has no roster entry', () => {
+    const actions: ParsedAction[] = [
+      {
+        team: 'home',
+        playerNumber: 99,
+        skill: 'R',
+        skillSubtype: null,
+        startZone: 1,
+        endZone: null,
+        effect: '#',
+        rawToken: '99R#1',
+      },
+    ];
+
+    const dto = baseRallyDto(matchId);
+    const rally = createRally(db, dto, actions);
+
+    expect(rally.actions[0].player_id).toBeNull();
+    expect(rally.actions[0].player_number).toBe(99);
+  });
+
+  it('links an attack to the opponent block via linked_id', () => {
+    // '14A#5.a3B=' -> home attack #14 A # zone5, then away block #3 B =
+    const actions: ParsedAction[] = [
+      {
+        team: 'home',
+        playerNumber: 14,
+        skill: 'A',
+        skillSubtype: null,
+        startZone: null,
+        endZone: 5,
+        effect: '#',
+        rawToken: '14A#5',
+      },
+      {
+        team: 'away',
+        playerNumber: 3,
+        skill: 'B',
+        skillSubtype: null,
+        startZone: null,
+        endZone: null,
+        effect: '=',
+        rawToken: 'a3B=',
+      },
+    ];
+
+    const dto = baseRallyDto(matchId);
+    const rally = createRally(db, dto, actions);
+
+    expect(rally.actions).toHaveLength(2);
+    const [attack, block] = rally.actions;
+    expect(attack.skill).toBe('A');
+    expect(attack.player_id).toBeNull(); // #14 has no roster entry
+    expect(block.skill).toBe('B');
+    expect(block.player_id).toBe(awayPlayerId);
+    expect(block.linked_id).toBe(attack.id);
+  });
+
+  it('deleteRally cascades to actions', () => {
+    const actions: ParsedAction[] = [
+      {
+        team: 'home',
+        playerNumber: 7,
+        skill: 'R',
+        skillSubtype: null,
+        startZone: 1,
+        endZone: null,
+        effect: '#',
+        rawToken: '7R#1',
+      },
+    ];
+
+    const dto = baseRallyDto(matchId);
+    const rally = createRally(db, dto, actions);
+
+    deleteRally(db, rally.id);
+
+    expect(listRallies(db, matchId, 1)).toEqual([]);
+    const count = db.prepare('SELECT COUNT(*) AS c FROM actions').get() as { c: number };
+    expect(count.c).toBe(0);
+  });
+
+  it('createSubstitution inserts exactly one row', () => {
+    const dto: CreateSubstitutionDTO = {
+      matchId,
+      setNumber: 1,
+      afterRally: 1,
+      team: 'home',
+      playerOutNum: 7,
+      playerInNum: 8,
+    };
+    createSubstitution(db, dto);
+    const count = db.prepare('SELECT COUNT(*) AS c FROM substitutions').get() as { c: number };
+    expect(count.c).toBe(1);
+  });
+
+  it('createTimeout inserts exactly one row', () => {
+    const dto: CreateTimeoutDTO = {
+      matchId,
+      setNumber: 1,
+      afterRally: 1,
+      team: 'away',
+    };
+    createTimeout(db, dto);
+    const count = db.prepare('SELECT COUNT(*) AS c FROM timeouts').get() as { c: number };
+    expect(count.c).toBe(1);
+  });
+});
