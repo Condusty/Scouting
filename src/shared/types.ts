@@ -182,6 +182,19 @@ export interface ScoutingSession {
   awayTeamId: number;
   homeRoster: TeamPlayer[];
   awayRoster: TeamPlayer[];
+  /** Shirt numbers for positions 1-6 at rotation 1, set by the LineupDialog. */
+  homeLineup: number[];
+  awayLineup: number[];
+  /** Court side (1|2), set via the 'I1'/'I2' sideswitch code. */
+  currentSide: 1 | 2;
+}
+
+export interface LineupSelection {
+  homeLineup: number[];
+  awayLineup: number[];
+  rotationHome: number;
+  rotationAway: number;
+  servingTeam: TeamSide;
 }
 
 export interface ScoringState {
