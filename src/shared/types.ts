@@ -66,6 +66,7 @@ export interface Rally {
   away_score_after: number | null;
   video_time_ms: number | null;
   raw_input: string | null;
+  actions: Action[];
 }
 
 export interface Action {
@@ -107,3 +108,60 @@ export interface RosterEntryInput {
   is_libero: boolean;
   is_setter: boolean;
 }
+
+export interface ParsedAction {
+  team: TeamSide;
+  playerNumber: number;
+  skill: Skill;
+  skillSubtype: string | null;
+  startZone: number | null;
+  endZone: number | null;
+  effect: Effect | null;
+  rawToken: string;
+}
+
+export interface ParsedSub {
+  team: TeamSide;
+  out: number;
+  in: number;
+}
+
+export interface ParsedRally {
+  actions: ParsedAction[];
+  subs: ParsedSub[];
+  timeouts: { team: TeamSide }[];
+  pointTeam: TeamSide | null;
+  rotationSet: number | null;
+  sideSwitch: 1 | 2 | null;
+  rawInput: string;
+}
+
+export interface ScoutingValidationError {
+  token: string;
+  message: string;
+  position: number;
+}
+
+export interface ScoutingSession {
+  matchId: number;
+  setNumber: number;
+  homeScore: number;
+  awayScore: number;
+  rotationHome: number;
+  rotationAway: number;
+  servingTeam: TeamSide;
+  homeTeamId: number;
+  awayTeamId: number;
+  homeRoster: TeamPlayer[];
+  awayRoster: TeamPlayer[];
+}
+
+export interface ScoringState {
+  homeScore: number;
+  awayScore: number;
+  rotationHome: number;
+  rotationAway: number;
+  servingTeam: TeamSide;
+}
+
+export type RallyOutcome = ScoringState & { pointTeam: TeamSide | null };
