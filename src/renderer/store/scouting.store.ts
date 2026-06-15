@@ -86,6 +86,8 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           servingTeam: 'home',
           homeTeamId: match.home_team_id,
           awayTeamId: match.away_team_id,
+          homeTeamName: match.home_team.name,
+          awayTeamName: match.away_team.name,
           homeRoster,
           awayRoster,
           homeLineup: [],
@@ -114,16 +116,16 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         ...session,
         homeLineup: selection.homeLineup,
         awayLineup: selection.awayLineup,
-        rotationHome: selection.rotationHome,
-        rotationAway: selection.rotationAway,
+        rotationHome: 1,
+        rotationAway: 1,
         servingTeam: selection.servingTeam,
       },
       needsLineup: false,
       initialState: {
         homeScore: 0,
         awayScore: 0,
-        rotationHome: selection.rotationHome,
-        rotationAway: selection.rotationAway,
+        rotationHome: 1,
+        rotationAway: 1,
         servingTeam: selection.servingTeam,
       },
     });
@@ -238,8 +240,11 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
     }
 
     let acc: ScoringState = initialState;
+    let currentSide: 1 | 2 = 1;
     for (const rally of remaining) {
       acc = reduceRally(rally, acc);
+      const parsed = parseCode(rally.raw_input ?? '');
+      if (parsed.sideSwitch !== null) currentSide = parsed.sideSwitch;
     }
 
     set({
@@ -251,6 +256,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         rotationHome: acc.rotationHome,
         rotationAway: acc.rotationAway,
         servingTeam: acc.servingTeam,
+        currentSide,
       },
       error: null,
     });
