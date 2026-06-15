@@ -8,7 +8,8 @@ export interface RotationDisplayProps {
   rotationAway: number;
 }
 
-const POSITIONS = [1, 2, 3, 4, 5, 6];
+// Display order: net at top (4-3-2), back row below (5-6-1) — matches LineupDialog's grid.
+const POSITIONS = [4, 3, 2, 5, 6, 1];
 
 /**
  * Shirt number at court position `position` (1-6), given the set-start
