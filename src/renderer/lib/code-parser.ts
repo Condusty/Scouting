@@ -1,7 +1,7 @@
 import type { ParsedAction, ParsedRally, ParsedSub, Skill, Effect, TeamSide } from '@shared/types';
 
 const SKILLS = new Set(['S', 'R', 'A', 'B', 'D', 'E', 'F']);
-const SERVE_TYPES = new Set(['Q', 'M', 'T']);
+const SERVE_TYPES = new Set(['Q', 'H', 'M', 'T']);
 const EFFECTS = new Set(['#', '+', '!', '-', '/', '=']);
 
 function emptyRally(rawInput: string): ParsedRally {
@@ -11,7 +11,6 @@ function emptyRally(rawInput: string): ParsedRally {
     timeouts: [],
     pointTeam: null,
     rotationSet: null,
-    sideSwitch: null,
     rawInput,
   };
 }
@@ -58,20 +57,11 @@ function parseEntry(token: string, rally: ParsedRally): void {
     return;
   }
 
-  // ROTATION := 'Z' DIGIT
-  if (trimmed[0] === 'Z') {
+  // ROTATION := 'I' DIGIT
+  if (trimmed[0] === 'I') {
     const digit = trimmed.slice(1);
     if (/^[1-6]$/.test(digit)) {
       rally.rotationSet = Number(digit);
-    }
-    return;
-  }
-
-  // SIDESWITCH := 'I' ('1'|'2')
-  if (trimmed[0] === 'I') {
-    const digit = trimmed.slice(1);
-    if (digit === '1' || digit === '2') {
-      rally.sideSwitch = digit === '1' ? 1 : 2;
     }
     return;
   }
@@ -114,7 +104,7 @@ function parseAction(rest: string, team: TeamSide, rawToken: string): ParsedActi
   const skill = rest[i] as Skill;
   i++;
 
-  // SERVETYPE := 'Q'|'M'|'T' (only after S)
+  // SERVETYPE := 'Q'|'H'|'M'|'T' (only after S)
   let skillSubtype: string | null = null;
   if (skill === 'S' && SERVE_TYPES.has(rest[i] ?? '')) {
     skillSubtype = rest[i];

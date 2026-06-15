@@ -10,13 +10,45 @@ export const SKILL_LABELS: Record<Skill, string> = {
   F: 'Freeball',
 };
 
-export const EFFECT_LABELS: Record<Effect, string> = {
+export const EFFECT_LABELS_GENERIC: Record<Effect, string> = {
   '#': 'perfekt',
   '+': 'positiv',
   '!': 'neutral',
   '-': 'negativ',
-  '/': 'Overpass',
+  '/': 'Weiterspiel',
   '=': 'Fehler',
+};
+
+export const EFFECT_LABELS_BY_SKILL: Partial<Record<Skill, Partial<Record<Effect, string>>>> = {
+  S: {
+    '#': 'Ass',
+    '+': 'Annahme schwer, keine Kombination',
+    '!': 'Annahme auf 3m-Linie',
+    '-': 'Annahme leicht, Kombination möglich',
+    '/': 'Rückschlag ins eigene Feld',
+    '=': 'Fehler',
+  },
+  R: {
+    '#': 'perfekt (4)',
+    '+': 'gut (3)',
+    '!': '3m-Linie (2)',
+    '-': 'schwach (1)',
+    '/': 'Overpass (0.5)',
+    '=': 'Fehler (0)',
+  },
+  B: {
+    '#': 'Stuff/Punkt',
+    '+': 'berührt, Gegenangriff möglich',
+    '!': 'Gegner deckt & greift erneut an',
+    '/': 'Netzfehler',
+    '=': 'Block-Out',
+  },
+  D: {
+    '#': 'Gegenangriff möglich',
+    '+': 'Gegenangriff möglich',
+    '/': 'Ball zurück zum Angreifer',
+    '=': 'Fehler/Punktverlust',
+  },
 };
 
 export const TEAM_LABELS: Record<TeamSide, string> = {
@@ -28,7 +60,8 @@ export function describeAction(action: ParsedAction): string {
   const parts = [`${TEAM_LABELS[action.team]} #${action.playerNumber}`, SKILL_LABELS[action.skill]];
 
   if (action.effect !== null) {
-    parts.push(`(${EFFECT_LABELS[action.effect]})`);
+    const label = EFFECT_LABELS_BY_SKILL[action.skill]?.[action.effect] ?? EFFECT_LABELS_GENERIC[action.effect];
+    parts.push(`(${label})`);
   }
 
   if (action.startZone !== null) {
@@ -65,10 +98,6 @@ export function describePendingRally(rally: ParsedRally): string[] {
 
   if (rally.rotationSet !== null) {
     parts.push(`Rotation → ${rally.rotationSet}`);
-  }
-
-  if (rally.sideSwitch !== null) {
-    parts.push(`Seitenwechsel → Seite ${rally.sideSwitch}`);
   }
 
   return parts;

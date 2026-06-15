@@ -38,7 +38,7 @@ interface ScoutingStore {
  * Reduces a single completed rally onto a scoring state, reproducing the
  * outcome it originally produced (the rally's `point_team` short-circuits
  * `determinePointTeam`, so this matches the original `deriveOutcome` call).
- * Manual `Z` rotation overrides applied at submit-time aren't replayed here -
+ * Manual `I` rotation overrides applied at submit-time aren't replayed here -
  * acceptable Phase-1 edge case (see computeRallyOutcome).
  */
 function reduceRally(rally: Rally, state: ScoringState): ScoringState {
@@ -49,7 +49,6 @@ function reduceRally(rally: Rally, state: ScoringState): ScoringState {
       timeouts: [],
       pointTeam: rally.point_team,
       rotationSet: null,
-      sideSwitch: null,
       rawInput: rally.raw_input ?? '',
     },
     state,
@@ -94,7 +93,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           awayRoster,
           homeLineup: [],
           awayLineup: [],
-          currentSide: 1,
         },
         rallies,
         needsLineup: true,
@@ -194,8 +192,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         });
       }
 
-      const currentSide = pendingRally.sideSwitch !== null ? pendingRally.sideSwitch : session.currentSide;
-
       set({
         rallies: [...rallies, newRally],
         session: {
@@ -205,7 +201,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           rotationHome: outcome.rotationHome,
           rotationAway: outcome.rotationAway,
           servingTeam: outcome.servingTeam,
-          currentSide,
         },
         currentInput: '',
         pendingRally: null,
@@ -298,13 +293,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         if (i !== -1) newRallies[i] = r;
       }
 
-      let currentSide: 1 | 2 = 1;
-      for (let i = 0; i < newRallies.length; i++) {
-        const sideSwitch =
-          i === index ? parsed.sideSwitch : parseCode(newRallies[i].raw_input ?? '').sideSwitch;
-        if (sideSwitch !== null) currentSide = sideSwitch;
-      }
-
       set({
         rallies: newRallies,
         session: {
@@ -314,7 +302,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           rotationHome: state.rotationHome,
           rotationAway: state.rotationAway,
           servingTeam: state.servingTeam,
-          currentSide,
         },
         error: null,
       });
@@ -338,11 +325,8 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
     }
 
     let acc: ScoringState = initialState;
-    let currentSide: 1 | 2 = 1;
     for (const rally of remaining) {
       acc = reduceRally(rally, acc);
-      const parsed = parseCode(rally.raw_input ?? '');
-      if (parsed.sideSwitch !== null) currentSide = parsed.sideSwitch;
     }
 
     set({
@@ -354,7 +338,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         rotationHome: acc.rotationHome,
         rotationAway: acc.rotationAway,
         servingTeam: acc.servingTeam,
-        currentSide,
       },
       error: null,
     });
@@ -372,7 +355,6 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         awayScore: 0,
         homeLineup: [],
         awayLineup: [],
-        currentSide: 1,
       },
       rallies: [],
       currentInput: '',

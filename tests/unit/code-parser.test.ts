@@ -20,7 +20,20 @@ describe('parseCode', () => {
     expect(result.timeouts).toEqual([]);
     expect(result.pointTeam).toBeNull();
     expect(result.rotationSet).toBeNull();
-    expect(result.sideSwitch).toBeNull();
+  });
+
+  it('parses a float serve subtype (H)', () => {
+    const result = parseCode('14SH');
+    expect(result.actions[0]).toEqual({
+      team: 'home',
+      playerNumber: 14,
+      skill: 'S',
+      skillSubtype: 'H',
+      startZone: null,
+      endZone: null,
+      effect: null,
+      rawToken: '14SH',
+    });
   });
 
   it('parses a single-digit player reception with single zone, defaulting to home team', () => {
@@ -112,13 +125,8 @@ describe('parseCode', () => {
   });
 
   it('parses a rotation set', () => {
-    const result = parseCode('Z3');
+    const result = parseCode('I3');
     expect(result.rotationSet).toBe(3);
-  });
-
-  it('parses a side switch', () => {
-    const result = parseCode('I2');
-    expect(result.sideSwitch).toBe(2);
   });
 
   it('returns an empty ParsedRally for an empty string', () => {
@@ -129,7 +137,6 @@ describe('parseCode', () => {
       timeouts: [],
       pointTeam: null,
       rotationSet: null,
-      sideSwitch: null,
       rawInput: '',
     });
   });
@@ -141,7 +148,6 @@ describe('parseCode', () => {
     expect(result.timeouts).toEqual([]);
     expect(result.pointTeam).toBeNull();
     expect(result.rotationSet).toBeNull();
-    expect(result.sideSwitch).toBeNull();
     expect(result.rawInput).toBe('   ');
   });
 

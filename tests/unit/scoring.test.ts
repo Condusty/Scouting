@@ -23,7 +23,6 @@ function makeRally(overrides: Partial<ParsedRally>): ParsedRally {
     timeouts: [],
     pointTeam: null,
     rotationSet: null,
-    sideSwitch: null,
     rawInput: '',
     ...overrides,
   };

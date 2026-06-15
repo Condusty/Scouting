@@ -38,7 +38,6 @@ function makeSession(): ScoutingSession {
     awayRoster: [makePlayer(3), makePlayer(10)],
     homeLineup: [],
     awayLineup: [],
-    currentSide: 1,
   };
 }
 

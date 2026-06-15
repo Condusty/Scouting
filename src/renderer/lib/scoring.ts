@@ -57,7 +57,7 @@ export function deriveOutcome(parsed: ParsedRally, state: ScoringState): RallyOu
 }
 
 /**
- * `deriveOutcome` plus the manual rotation override (`Z<n>`): overwrites the
+ * `deriveOutcome` plus the manual rotation override (`I<n>`): overwrites the
  * serving team's rotation with `parsed.rotationSet` when present. Single
  * entry point for outcome computation, used by both new-rally submission and
  * rally-edit cascade recompute.
