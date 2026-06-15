@@ -180,6 +180,8 @@ export interface ScoutingSession {
   servingTeam: TeamSide;
   homeTeamId: number;
   awayTeamId: number;
+  homeTeamName: string;
+  awayTeamName: string;
   homeRoster: TeamPlayer[];
   awayRoster: TeamPlayer[];
   /** Shirt numbers for positions 1-6 at rotation 1, set by the LineupDialog. */

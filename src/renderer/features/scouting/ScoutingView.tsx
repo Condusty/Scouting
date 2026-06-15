@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useScoutingStore } from '@renderer/store/scouting.store';
 import { useUIStore } from '@renderer/store/ui.store';
-import { matchesApi } from '@renderer/api/matches.api';
 import { LineupDialog } from '@renderer/features/scouting/LineupDialog';
 import { ScoreBoard } from '@renderer/features/scouting/ScoreBoard';
 import { RotationDisplay } from '@renderer/features/scouting/RotationDisplay';
@@ -15,19 +14,13 @@ export interface ScoutingViewProps {
 export function ScoutingView({ matchId }: ScoutingViewProps) {
   const session = useScoutingStore((s) => s.session);
   const needsLineup = useScoutingStore((s) => s.needsLineup);
+  const initialState = useScoutingStore((s) => s.initialState);
   const error = useScoutingStore((s) => s.error);
   const setLineup = useScoutingStore((s) => s.setLineup);
   const { activeTabId, closeTab } = useUIStore();
 
-  const [homeTeamName, setHomeTeamName] = useState('Heim');
-  const [awayTeamName, setAwayTeamName] = useState('Gast');
-
   useEffect(() => {
     void useScoutingStore.getState().startSession(matchId, 1);
-    matchesApi.get(matchId).then((detail) => {
-      setHomeTeamName(detail.home_team.name);
-      setAwayTeamName(detail.away_team.name);
-    });
   }, [matchId]);
 
   if (session === null) {
@@ -57,8 +50,8 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
             homeScore={session.homeScore}
             awayScore={session.awayScore}
             servingTeam={session.servingTeam}
-            homeTeamName={homeTeamName}
-            awayTeamName={awayTeamName}
+            homeTeamName={session.homeTeamName}
+            awayTeamName={session.awayTeamName}
           />
           <div className="flex flex-1 overflow-hidden">
             <div className="flex flex-1 flex-col overflow-hidden">

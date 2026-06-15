@@ -32,6 +32,8 @@ function makeSession(): ScoutingSession {
     servingTeam: 'home',
     homeTeamId: 1,
     awayTeamId: 2,
+    homeTeamName: 'Heim',
+    awayTeamName: 'Gast',
     homeRoster: [makePlayer(7), makePlayer(14)],
     awayRoster: [makePlayer(3), makePlayer(10)],
     homeLineup: [],
