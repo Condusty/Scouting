@@ -23,7 +23,7 @@ export function TabContent() {
     case 'team':
       return <TeamList />;
     case 'player':
-      return <PlayerList />;
+      return <PlayerList teamId={active.params.teamId as number | undefined} />;
     case 'match':
       return <MatchList />;
     case 'scouting':
