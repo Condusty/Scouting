@@ -1,8 +1,9 @@
 import React from 'react';
 import type { TeamPlayer, LineupSelection, TeamSide } from '@shared/types';
 import { Dialog } from '@renderer/components/ui/Dialog';
-import { Field, Select } from '@renderer/components/ui/Field';
+import { Field } from '@renderer/components/ui/Field';
 import { Button } from '@renderer/components/ui/Button';
+import { cn } from '@renderer/lib/cn';
 
 export interface LineupDialogProps {
   open: boolean;
@@ -12,13 +13,21 @@ export interface LineupDialogProps {
   onCancel: () => void;
 }
 
-const POSITIONS = [1, 2, 3, 4, 5, 6];
-const ROTATIONS = [1, 2, 3, 4, 5, 6];
+// Display order: net at top (4-3-2), back row below (5-6-1). Index = position - 1.
+const GRID_POSITIONS = [4, 3, 2, 5, 6, 1];
 
 function SetterBadge() {
   return (
-    <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-500/20 px-1.5 text-[10px] font-semibold text-sky-300">
+    <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-500/20 px-1 text-[9px] font-semibold text-sky-300">
       S
+    </span>
+  );
+}
+
+function LiberoBadge() {
+  return (
+    <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500/20 px-1 text-[9px] font-semibold text-amber-300">
+      L
     </span>
   );
 }
@@ -27,77 +36,117 @@ function LineupColumn({
   label,
   roster,
   lineup,
-  onChangeLineup,
-  rotation,
-  onChangeRotation,
+  onPlace,
+  onClear,
 }: {
   label: string;
   roster: TeamPlayer[];
-  lineup: string[];
-  onChangeLineup: (lineup: string[]) => void;
-  rotation: number;
-  onChangeRotation: (rotation: number) => void;
+  lineup: (number | null)[];
+  onPlace: (position: number, shirt: number) => void;
+  onClear: (position: number) => void;
 }) {
-  const setPosition = (index: number, value: string) => {
-    const next = [...lineup];
-    next[index] = value;
-    onChangeLineup(next);
+  const placed = new Set(lineup.filter((v): v is number => v !== null));
+  const bench = roster.filter((p) => !placed.has(p.shirt_number));
+
+  const handleDrop = (e: React.DragEvent, position: number) => {
+    e.preventDefault();
+    const shirt = Number(e.dataTransfer.getData('text/plain'));
+    if (!Number.isNaN(shirt)) onPlace(position, shirt);
   };
 
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold text-zinc-200">{label}</h3>
-      {POSITIONS.map((pos, idx) => {
-        const selectedShirt = lineup[idx];
-        const selectedPlayer = roster.find((p) => String(p.shirt_number) === selectedShirt);
-        return (
-          <Field key={pos} label={`Position ${pos}`}>
-            <div className="flex items-center gap-2">
-              <Select value={selectedShirt} onChange={(e) => setPosition(idx, e.target.value)}>
-                <option value="">–</option>
-                {roster.map((p) => (
-                  <option key={p.id} value={p.shirt_number}>
-                    {`#${p.shirt_number} ${p.first_name} ${p.last_name}`}
-                  </option>
-                ))}
-              </Select>
-              {selectedPlayer?.is_setter && <SetterBadge />}
+      <div>
+        <span className="mb-1.5 block text-xs font-medium text-zinc-400">Kader</span>
+        <div className="flex min-h-9 flex-wrap gap-1.5">
+          {bench.map((p) => (
+            <div
+              key={p.id}
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData('text/plain', String(p.shirt_number))}
+              className="flex cursor-grab items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 active:cursor-grabbing"
+            >
+              <span className="font-semibold">#{p.shirt_number}</span> {p.last_name}
+              {p.is_setter && <SetterBadge />}
+              {p.is_libero && <LiberoBadge />}
             </div>
-          </Field>
-        );
-      })}
-      <Field label="Startrotation">
-        <Select value={rotation} onChange={(e) => onChangeRotation(Number(e.target.value))}>
-          {ROTATIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
           ))}
-        </Select>
-      </Field>
+          {bench.length === 0 && <span className="text-xs text-zinc-500">—</span>}
+        </div>
+      </div>
+      <div>
+        <span className="mb-1.5 block text-center text-[10px] uppercase tracking-wide text-zinc-500">
+          Netz ────────────
+        </span>
+        <div className="grid grid-cols-3 gap-1.5">
+          {GRID_POSITIONS.map((pos) => {
+            const shirt = lineup[pos - 1];
+            const player = roster.find((p) => p.shirt_number === shirt);
+            return (
+              <div
+                key={pos}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, pos)}
+                onClick={() => player && onClear(pos)}
+                className={cn(
+                  'flex h-16 flex-col items-center justify-center rounded-lg border px-2 py-1.5 text-center',
+                  player
+                    ? 'cursor-pointer border-sky-500/60 bg-sky-500/10'
+                    : 'border-dashed border-zinc-700 bg-zinc-800/40'
+                )}
+              >
+                <span className="text-[10px] uppercase tracking-wide text-zinc-500">Position {pos}</span>
+                {player ? (
+                  <span className="text-sm font-semibold text-zinc-100">
+                    #{player.shirt_number} {player.last_name}
+                    {player.is_setter && <SetterBadge />}
+                    {player.is_libero && <LiberoBadge />}
+                  </span>
+                ) : (
+                  <span className="text-xs text-zinc-500">leer</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
 
 export function LineupDialog({ open, homeRoster, awayRoster, onConfirm, onCancel }: LineupDialogProps) {
-  const [homeLineup, setHomeLineup] = React.useState<string[]>(['', '', '', '', '', '']);
-  const [awayLineup, setAwayLineup] = React.useState<string[]>(['', '', '', '', '', '']);
-  const [rotationHome, setRotationHome] = React.useState(1);
-  const [rotationAway, setRotationAway] = React.useState(1);
+  const [homeLineup, setHomeLineup] = React.useState<(number | null)[]>(Array(6).fill(null));
+  const [awayLineup, setAwayLineup] = React.useState<(number | null)[]>(Array(6).fill(null));
   const [servingTeam, setServingTeam] = React.useState<TeamSide | null>(null);
 
-  const isLineupValid = (lineup: string[]) =>
-    lineup.length === 6 && lineup.every((v) => v !== '') && new Set(lineup).size === 6;
+  const placeAt =
+    (setLineup: React.Dispatch<React.SetStateAction<(number | null)[]>>) =>
+    (position: number, shirt: number) => {
+      setLineup((prev) => {
+        const next = prev.map((v) => (v === shirt ? null : v));
+        next[position - 1] = shirt;
+        return next;
+      });
+    };
 
-  const isValid = isLineupValid(homeLineup) && isLineupValid(awayLineup) && servingTeam !== null;
+  const clearAt =
+    (setLineup: React.Dispatch<React.SetStateAction<(number | null)[]>>) => (position: number) => {
+      setLineup((prev) => {
+        const next = [...prev];
+        next[position - 1] = null;
+        return next;
+      });
+    };
+
+  const isFull = (lineup: (number | null)[]) => lineup.every((v) => v !== null);
+  const isValid = isFull(homeLineup) && isFull(awayLineup) && servingTeam !== null;
 
   const handleConfirm = () => {
     if (!isValid) return;
     onConfirm({
-      homeLineup: homeLineup.map(Number),
-      awayLineup: awayLineup.map(Number),
-      rotationHome,
-      rotationAway,
+      homeLineup: homeLineup as number[],
+      awayLineup: awayLineup as number[],
       servingTeam: servingTeam!,
     });
   };
@@ -107,6 +156,7 @@ export function LineupDialog({ open, homeRoster, awayRoster, onConfirm, onCancel
       open={open}
       onClose={onCancel}
       title="Aufstellung"
+      className="max-w-2xl"
       footer={
         <>
           <Button variant="secondary" onClick={onCancel}>
@@ -120,35 +170,15 @@ export function LineupDialog({ open, homeRoster, awayRoster, onConfirm, onCancel
     >
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
-          <LineupColumn
-            label="Heim"
-            roster={homeRoster}
-            lineup={homeLineup}
-            onChangeLineup={setHomeLineup}
-            rotation={rotationHome}
-            onChangeRotation={setRotationHome}
-          />
-          <LineupColumn
-            label="Gast"
-            roster={awayRoster}
-            lineup={awayLineup}
-            onChangeLineup={setAwayLineup}
-            rotation={rotationAway}
-            onChangeRotation={setRotationAway}
-          />
+          <LineupColumn label="Heim" roster={homeRoster} lineup={homeLineup} onPlace={placeAt(setHomeLineup)} onClear={clearAt(setHomeLineup)} />
+          <LineupColumn label="Gast" roster={awayRoster} lineup={awayLineup} onPlace={placeAt(setAwayLineup)} onClear={clearAt(setAwayLineup)} />
         </div>
         <Field label="Aufschlag">
           <div className="flex gap-2">
-            <Button
-              variant={servingTeam === 'home' ? 'primary' : 'secondary'}
-              onClick={() => setServingTeam('home')}
-            >
+            <Button variant={servingTeam === 'home' ? 'primary' : 'secondary'} onClick={() => setServingTeam('home')}>
               Aufschlag Heim
             </Button>
-            <Button
-              variant={servingTeam === 'away' ? 'primary' : 'secondary'}
-              onClick={() => setServingTeam('away')}
-            >
+            <Button variant={servingTeam === 'away' ? 'primary' : 'secondary'} onClick={() => setServingTeam('away')}>
               Aufschlag Gast
             </Button>
           </div>
