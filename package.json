@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "preview": "electron-vite preview",
+    "seed": "tsx scripts/seed-test-data.ts",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3"
   },
@@ -56,6 +57,7 @@
     "playwright": "^1.60.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",
     "vitest": "^4.1.8"
