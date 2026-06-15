@@ -192,8 +192,6 @@ export interface ScoutingSession {
 export interface LineupSelection {
   homeLineup: number[];
   awayLineup: number[];
-  rotationHome: number;
-  rotationAway: number;
   servingTeam: TeamSide;
 }
 
