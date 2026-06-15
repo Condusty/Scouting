@@ -14,7 +14,6 @@ export interface ScoutingViewProps {
 export function ScoutingView({ matchId }: ScoutingViewProps) {
   const session = useScoutingStore((s) => s.session);
   const needsLineup = useScoutingStore((s) => s.needsLineup);
-  const initialState = useScoutingStore((s) => s.initialState);
   const error = useScoutingStore((s) => s.error);
   const setLineup = useScoutingStore((s) => s.setLineup);
   const { activeTabId, closeTab } = useUIStore();
