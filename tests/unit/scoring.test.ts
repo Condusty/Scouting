@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveOutcome } from '../../src/renderer/lib/scoring';
+import { deriveOutcome, computeRallyOutcome } from '../../src/renderer/lib/scoring';
 import type { ParsedAction, ParsedRally, ScoringState } from '../../src/shared/types';
 
 function makeAction(overrides: Partial<ParsedAction>): ParsedAction {
@@ -173,6 +173,55 @@ describe('deriveOutcome', () => {
     expect(result).toEqual({
       ...state,
       pointTeam: null,
+    });
+  });
+});
+
+describe('computeRallyOutcome', () => {
+  it('without rotationSet behaves like deriveOutcome', () => {
+    const state = initialState();
+    const parsed = makeRally({
+      actions: [makeAction({ team: 'home', skill: 'S', effect: '#' })],
+    });
+
+    expect(computeRallyOutcome(parsed, state)).toEqual(deriveOutcome(parsed, state));
+  });
+
+  it('rotationSet overrides serving team rotation after side-out', () => {
+    const state = initialState({ servingTeam: 'home', rotationAway: 3 });
+    const parsed = makeRally({
+      actions: [makeAction({ team: 'away', skill: 'A', effect: '#' })],
+      rotationSet: 5,
+    });
+
+    const result = computeRallyOutcome(parsed, state);
+
+    expect(result).toEqual({
+      homeScore: 0,
+      awayScore: 1,
+      rotationHome: 1,
+      rotationAway: 5,
+      servingTeam: 'away',
+      pointTeam: 'away',
+    });
+  });
+
+  it('rotationSet overrides serving team rotation when serving team keeps serving', () => {
+    const state = initialState({ servingTeam: 'home', rotationHome: 2 });
+    const parsed = makeRally({
+      actions: [makeAction({ team: 'home', skill: 'S', effect: '#' })],
+      rotationSet: 4,
+    });
+
+    const result = computeRallyOutcome(parsed, state);
+
+    expect(result).toEqual({
+      homeScore: 1,
+      awayScore: 0,
+      rotationHome: 4,
+      rotationAway: 1,
+      servingTeam: 'home',
+      pointTeam: 'home',
     });
   });
 });

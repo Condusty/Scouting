@@ -55,3 +55,23 @@ export function deriveOutcome(parsed: ParsedRally, state: ScoringState): RallyOu
 
   return result;
 }
+
+/**
+ * `deriveOutcome` plus the manual rotation override (`Z<n>`): overwrites the
+ * serving team's rotation with `parsed.rotationSet` when present. Single
+ * entry point for outcome computation, used by both new-rally submission and
+ * rally-edit cascade recompute.
+ */
+export function computeRallyOutcome(parsed: ParsedRally, state: ScoringState): RallyOutcome {
+  const outcome = deriveOutcome(parsed, state);
+
+  if (parsed.rotationSet !== null) {
+    if (outcome.servingTeam === 'home') {
+      outcome.rotationHome = parsed.rotationSet;
+    } else {
+      outcome.rotationAway = parsed.rotationSet;
+    }
+  }
+
+  return outcome;
+}

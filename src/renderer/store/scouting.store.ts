@@ -3,6 +3,7 @@ import type {
   LineupSelection,
   ParsedRally,
   Rally,
+  RallyScoringUpdate,
   ScoringState,
   ScoutingSession,
   ScoutingValidationError,
@@ -12,7 +13,7 @@ import { rosterApi } from '@renderer/api/roster.api';
 import { scoutingApi } from '@renderer/api/scouting.api';
 import { parseCode } from '@renderer/lib/code-parser';
 import { validateRally } from '@renderer/lib/code-validator';
-import { deriveOutcome } from '@renderer/lib/scoring';
+import { deriveOutcome, computeRallyOutcome } from '@renderer/lib/scoring';
 
 interface ScoutingStore {
   session: ScoutingSession | null;
@@ -28,6 +29,7 @@ interface ScoutingStore {
   setLineup: (selection: LineupSelection) => void;
   setInput: (raw: string) => void;
   submitCode: () => Promise<void>;
+  updateRally: (rallyId: number, rawInput: string) => Promise<void>;
   undoLastRally: () => Promise<void>;
   nextSet: () => Promise<void>;
 }
@@ -36,8 +38,8 @@ interface ScoutingStore {
  * Reduces a single completed rally onto a scoring state, reproducing the
  * outcome it originally produced (the rally's `point_team` short-circuits
  * `determinePointTeam`, so this matches the original `deriveOutcome` call).
- * Manual `Z`/`I` overrides applied at submit-time aren't replayed here -
- * acceptable Phase-1 edge case (see submitCode).
+ * Manual `Z` rotation overrides applied at submit-time aren't replayed here -
+ * acceptable Phase-1 edge case (see computeRallyOutcome).
  */
 function reduceRally(rally: Rally, state: ScoringState): ScoringState {
   const outcome = deriveOutcome(
@@ -146,23 +148,13 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
     if (session === null || pendingRally === null) return;
     if (validationErrors.length > 0) return;
 
-    const outcome = deriveOutcome(pendingRally, {
+    const outcome = computeRallyOutcome(pendingRally, {
       homeScore: session.homeScore,
       awayScore: session.awayScore,
       rotationHome: session.rotationHome,
       rotationAway: session.rotationAway,
       servingTeam: session.servingTeam,
     });
-
-    // Manual rotation override (Z<n>): overwrite the serving team's rotation.
-    // Note: not replayed by undoLastRally's reduction - acceptable Phase-1 edge case.
-    if (pendingRally.rotationSet !== null) {
-      if (outcome.servingTeam === 'home') {
-        outcome.rotationHome = pendingRally.rotationSet;
-      } else {
-        outcome.rotationAway = pendingRally.rotationSet;
-      }
-    }
 
     const rallyNumber = rallies.length + 1;
 
@@ -218,6 +210,112 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         currentInput: '',
         pendingRally: null,
         validationErrors: [],
+        error: null,
+      });
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+  },
+
+  updateRally: async (rallyId, rawInput) => {
+    const { session, rallies, initialState } = get();
+    if (session === null || initialState === null) return;
+
+    const index = rallies.findIndex((r) => r.id === rallyId);
+    if (index === -1) return;
+
+    const parsed = parseCode(rawInput);
+    const errors = validateRally(parsed, session);
+    if (errors.length > 0) {
+      set({ error: errors[0].message });
+      return;
+    }
+
+    // State before the edited rally, reduced from the start of the set.
+    let state: ScoringState = initialState;
+    for (let i = 0; i < index; i++) {
+      state = reduceRally(rallies[i], state);
+    }
+
+    // Cascade recompute: edited rally + every following rally, in order.
+    const rally = rallies[index];
+    let editedOutcome: ScoringState & { pointTeam: Rally['point_team'] } | null = null;
+    const cascade: RallyScoringUpdate[] = [];
+
+    for (let i = index; i < rallies.length; i++) {
+      const rallyParsed = i === index ? parsed : parseCode(rallies[i].raw_input ?? '');
+      const outcome = computeRallyOutcome(rallyParsed, state);
+      state = outcome;
+
+      if (i === index) {
+        editedOutcome = outcome;
+      } else {
+        cascade.push({
+          id: rallies[i].id,
+          rotationHome: outcome.rotationHome,
+          rotationAway: outcome.rotationAway,
+          pointTeam: outcome.pointTeam,
+          homeScoreAfter: outcome.homeScore,
+          awayScoreAfter: outcome.awayScore,
+        });
+      }
+    }
+
+    if (editedOutcome === null) return;
+
+    try {
+      const updated = await scoutingApi.updateRally(
+        rallyId,
+        {
+          rotationHome: editedOutcome.rotationHome,
+          rotationAway: editedOutcome.rotationAway,
+          pointTeam: editedOutcome.pointTeam,
+          homeScoreAfter: editedOutcome.homeScore,
+          awayScoreAfter: editedOutcome.awayScore,
+          rawInput: parsed.rawInput,
+        },
+        parsed.actions,
+        parsed.subs.map((sub) => ({
+          matchId: session.matchId,
+          setNumber: session.setNumber,
+          afterRally: rally.rally_number,
+          team: sub.team,
+          playerOutNum: sub.out,
+          playerInNum: sub.in,
+        })),
+        parsed.timeouts.map((timeout) => ({
+          matchId: session.matchId,
+          setNumber: session.setNumber,
+          afterRally: rally.rally_number,
+          team: timeout.team,
+        })),
+        cascade,
+      );
+
+      const newRallies = [...rallies];
+      for (const r of updated) {
+        const i = newRallies.findIndex((x) => x.id === r.id);
+        if (i !== -1) newRallies[i] = r;
+      }
+
+      let currentSide: 1 | 2 = 1;
+      for (let i = 0; i < newRallies.length; i++) {
+        const sideSwitch =
+          i === index ? parsed.sideSwitch : parseCode(newRallies[i].raw_input ?? '').sideSwitch;
+        if (sideSwitch !== null) currentSide = sideSwitch;
+      }
+
+      set({
+        rallies: newRallies,
+        session: {
+          ...session,
+          homeScore: state.homeScore,
+          awayScore: state.awayScore,
+          rotationHome: state.rotationHome,
+          rotationAway: state.rotationAway,
+          servingTeam: state.servingTeam,
+          currentSide,
+        },
         error: null,
       });
     } catch (e) {

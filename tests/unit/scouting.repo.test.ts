@@ -7,6 +7,7 @@ import { addRosterPlayer } from '../../src/main/db/roster.repo';
 import { createMatch } from '../../src/main/db/matches.repo';
 import {
   createRally,
+  updateRally,
   listRallies,
   deleteRally,
   createSubstitution,
@@ -18,6 +19,7 @@ import type {
   CreateRallyDTO,
   CreateSubstitutionDTO,
   CreateTimeoutDTO,
+  UpdateRallyDTO,
 } from '@shared/types';
 
 function freshDb() {
@@ -248,5 +250,143 @@ describe('scouting.repo', () => {
     createTimeout(db, dto);
     const count = db.prepare('SELECT COUNT(*) AS c FROM timeouts').get() as { c: number };
     expect(count.c).toBe(1);
+  });
+
+  describe('updateRally', () => {
+    it('replaces raw_input, scoring fields and actions', () => {
+      const rally = createRally(db, baseRallyDto(matchId), [
+        {
+          team: 'home',
+          playerNumber: 7,
+          skill: 'R',
+          skillSubtype: null,
+          startZone: 1,
+          endZone: null,
+          effect: '#',
+          rawToken: '7R#1',
+        },
+      ]);
+
+      const dto: UpdateRallyDTO = {
+        rotationHome: 2,
+        rotationAway: 1,
+        pointTeam: 'away',
+        homeScoreAfter: 0,
+        awayScoreAfter: 1,
+        rawInput: 'a3A#5',
+      };
+      const newActions: ParsedAction[] = [
+        {
+          team: 'away',
+          playerNumber: 3,
+          skill: 'A',
+          skillSubtype: null,
+          startZone: null,
+          endZone: 5,
+          effect: '#',
+          rawToken: 'a3A#5',
+        },
+      ];
+
+      const [updated] = updateRally(db, rally.id, dto, newActions, [], [], []);
+
+      expect(updated.raw_input).toBe('a3A#5');
+      expect(updated.rotation_home).toBe(2);
+      expect(updated.point_team).toBe('away');
+      expect(updated.home_score_after).toBe(0);
+      expect(updated.away_score_after).toBe(1);
+      expect(updated.actions).toHaveLength(1);
+      expect(updated.actions[0].skill).toBe('A');
+      expect(updated.actions[0].player_id).toBe(awayPlayerId);
+    });
+
+    it('replaces substitutions and timeouts for the rally', () => {
+      const rally = createRally(db, baseRallyDto(matchId), []);
+
+      createSubstitution(db, {
+        matchId,
+        setNumber: 1,
+        afterRally: rally.rally_number,
+        team: 'home',
+        playerOutNum: 7,
+        playerInNum: 8,
+      });
+      createTimeout(db, {
+        matchId,
+        setNumber: 1,
+        afterRally: rally.rally_number,
+        team: 'away',
+      });
+
+      const dto: UpdateRallyDTO = {
+        rotationHome: 1,
+        rotationAway: 1,
+        pointTeam: 'home',
+        homeScoreAfter: 1,
+        awayScoreAfter: 0,
+        rawInput: '7R#1',
+      };
+
+      updateRally(
+        db,
+        rally.id,
+        dto,
+        [],
+        [
+          {
+            matchId,
+            setNumber: 1,
+            afterRally: rally.rally_number,
+            team: 'away',
+            playerOutNum: 3,
+            playerInNum: 4,
+          },
+        ],
+        [],
+        [],
+      );
+
+      const subs = db.prepare('SELECT * FROM substitutions').all() as { team: string; player_out_num: number }[];
+      expect(subs).toHaveLength(1);
+      expect(subs[0].team).toBe('away');
+      expect(subs[0].player_out_num).toBe(3);
+
+      const timeouts = db.prepare('SELECT * FROM timeouts').all();
+      expect(timeouts).toHaveLength(0);
+    });
+
+    it('applies cascade scoring updates to following rallies without touching their raw_input', () => {
+      const rally1 = createRally(db, baseRallyDto(matchId), []);
+      const rally2 = createRally(db, { ...baseRallyDto(matchId), rallyNumber: 2, homeScoreAfter: 2 }, []);
+
+      const dto: UpdateRallyDTO = {
+        rotationHome: 1,
+        rotationAway: 2,
+        pointTeam: 'away',
+        homeScoreAfter: 0,
+        awayScoreAfter: 1,
+        rawInput: 'a3A#5',
+      };
+
+      const result = updateRally(db, rally1.id, dto, [], [], [], [
+        {
+          id: rally2.id,
+          rotationHome: 1,
+          rotationAway: 2,
+          pointTeam: 'away',
+          homeScoreAfter: 0,
+          awayScoreAfter: 2,
+        },
+      ]);
+
+      expect(result).toHaveLength(2);
+      const [updated1, updated2] = result;
+      expect(updated1.id).toBe(rally1.id);
+      expect(updated1.point_team).toBe('away');
+      expect(updated2.id).toBe(rally2.id);
+      expect(updated2.home_score_after).toBe(0);
+      expect(updated2.away_score_after).toBe(2);
+      expect(updated2.raw_input).toBe(rally2.raw_input);
+    });
   });
 });

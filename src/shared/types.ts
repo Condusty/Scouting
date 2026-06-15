@@ -138,6 +138,17 @@ export interface CreateRallyDTO {
   rawInput: string | null;
 }
 
+export type UpdateRallyDTO = Omit<CreateRallyDTO, 'matchId' | 'setNumber' | 'rallyNumber'>;
+
+export interface RallyScoringUpdate {
+  id: number;
+  rotationHome: number | null;
+  rotationAway: number | null;
+  pointTeam: TeamSide | null;
+  homeScoreAfter: number | null;
+  awayScoreAfter: number | null;
+}
+
 export interface CreateSubstitutionDTO {
   matchId: number;
   setNumber: number;
