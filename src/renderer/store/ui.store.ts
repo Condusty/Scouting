@@ -3,7 +3,7 @@ import { create } from 'zustand';
 const nanoid = () => Math.random().toString(36).slice(2, 11);
 
 export type Layout = 'scout' | 'show' | 'synchronize';
-export type TabType = 'home' | 'match' | 'season' | 'team' | 'player' | 'report';
+export type TabType = 'home' | 'match' | 'season' | 'team' | 'player' | 'report' | 'scouting';
 
 export interface Tab {
   id: string;

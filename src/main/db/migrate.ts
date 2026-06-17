@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import migration001 from './migrations/001_initial.sql?raw';
+import migration002 from './migrations/002_set_lineups.sql?raw';
 
 export function runMigrations(db: Database.Database): void {
   db.exec(`
@@ -11,6 +12,7 @@ export function runMigrations(db: Database.Database): void {
 
   const migrations = [
     { version: 1, sql: migration001 },
+    { version: 2, sql: migration002 },
   ];
 
   const applied = new Set(

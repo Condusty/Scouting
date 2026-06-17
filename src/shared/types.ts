@@ -66,6 +66,7 @@ export interface Rally {
   away_score_after: number | null;
   video_time_ms: number | null;
   raw_input: string | null;
+  actions: Action[];
 }
 
 export interface Action {
@@ -107,3 +108,125 @@ export interface RosterEntryInput {
   is_libero: boolean;
   is_setter: boolean;
 }
+
+export interface ParsedAction {
+  team: TeamSide;
+  playerNumber: number;
+  skill: Skill;
+  skillSubtype: string | null;
+  startZone: number | null;
+  endZone: number | null;
+  effect: Effect | null;
+  rawToken: string;
+}
+
+export interface ParsedSub {
+  team: TeamSide;
+  out: number;
+  in: number;
+}
+
+export interface CreateRallyDTO {
+  matchId: number;
+  setNumber: number;
+  rallyNumber: number;
+  rotationHome: number | null;
+  rotationAway: number | null;
+  pointTeam: TeamSide | null;
+  homeScoreAfter: number | null;
+  awayScoreAfter: number | null;
+  rawInput: string | null;
+}
+
+export type UpdateRallyDTO = Omit<CreateRallyDTO, 'matchId' | 'setNumber' | 'rallyNumber'>;
+
+export interface RallyScoringUpdate {
+  id: number;
+  rotationHome: number | null;
+  rotationAway: number | null;
+  pointTeam: TeamSide | null;
+  homeScoreAfter: number | null;
+  awayScoreAfter: number | null;
+}
+
+export interface CreateSubstitutionDTO {
+  matchId: number;
+  setNumber: number;
+  afterRally: number;
+  team: TeamSide;
+  playerOutNum: number;
+  playerInNum: number;
+}
+
+export interface CreateTimeoutDTO {
+  matchId: number;
+  setNumber: number;
+  afterRally: number;
+  team: TeamSide;
+}
+
+export interface ParsedRally {
+  actions: ParsedAction[];
+  subs: ParsedSub[];
+  timeouts: { team: TeamSide }[];
+  pointTeam: TeamSide | null;
+  rotationSet: number | null;
+  rawInput: string;
+}
+
+export interface ScoutingValidationError {
+  token: string;
+  message: string;
+  position: number;
+}
+
+export interface ScoutingSession {
+  matchId: number;
+  setNumber: number;
+  homeScore: number;
+  awayScore: number;
+  rotationHome: number;
+  rotationAway: number;
+  servingTeam: TeamSide;
+  homeTeamId: number;
+  awayTeamId: number;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeRoster: TeamPlayer[];
+  awayRoster: TeamPlayer[];
+  /** Shirt numbers for positions 1-6 at rotation 1, set by the LineupDialog. */
+  homeLineup: number[];
+  awayLineup: number[];
+}
+
+export interface LineupSelection {
+  homeLineup: number[];
+  awayLineup: number[];
+  servingTeam: TeamSide;
+}
+
+export interface SetRecord {
+  match_id: number;
+  set_number: number;
+  home_lineup: string | null;
+  away_lineup: string | null;
+  serving_team: TeamSide | null;
+}
+
+export interface UpsertSetDTO {
+  matchId: number;
+  setNumber: number;
+  homeLineup: number[];
+  awayLineup: number[];
+  servingTeam: TeamSide;
+}
+
+export interface ScoringState {
+  homeScore: number;
+  awayScore: number;
+  rotationHome: number;
+  rotationAway: number;
+  servingTeam: TeamSide;
+}
+
+export type RallyOutcome = ScoringState & { pointTeam: TeamSide | null };

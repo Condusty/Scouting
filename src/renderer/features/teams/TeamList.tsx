@@ -2,6 +2,7 @@ import React from 'react';
 import { Users, Plus, Trash2, ListChecks } from 'lucide-react';
 import type { TeamRecord } from '@shared/types';
 import { useTeamsStore } from '@renderer/store/teams.store';
+import { useUIStore } from '@renderer/store/ui.store';
 import { Page } from '@renderer/components/ui/Page';
 import { Button, IconButton } from '@renderer/components/ui/Button';
 import { DataTable } from '@renderer/components/ui/DataTable';
@@ -9,14 +10,13 @@ import { EmptyState } from '@renderer/components/ui/EmptyState';
 import { Dialog } from '@renderer/components/ui/Dialog';
 import { ConfirmDialog } from '@renderer/components/ui/ConfirmDialog';
 import { TeamForm, emptyTeam, teamToForm, type TeamFormValues } from './TeamForm';
-import { TeamRoster } from './TeamRoster';
 
 export function TeamList() {
   const { teams, load, create, update, remove, error } = useTeamsStore();
+  const { openTab } = useUIStore();
   const [open, setOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<TeamFormValues>(emptyTeam());
-  const [rosterTeam, setRosterTeam] = React.useState<TeamRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<TeamRecord | null>(null);
 
   React.useEffect(() => {
@@ -75,7 +75,7 @@ export function TeamList() {
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation();
-                      setRosterTeam(t);
+                      openTab({ type: 'player', label: 'Spieler', params: { teamId: t.id } });
                     }}
                     aria-label="Kader"
                   >
@@ -113,7 +113,6 @@ export function TeamList() {
       >
         <TeamForm values={form} onChange={setForm} />
       </Dialog>
-      {rosterTeam && <TeamRoster team={rosterTeam} onClose={() => setRosterTeam(null)} />}
       <ConfirmDialog
         open={deleteTarget != null}
         title="Team löschen"

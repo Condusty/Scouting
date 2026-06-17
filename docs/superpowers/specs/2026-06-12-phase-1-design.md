@@ -95,19 +95,18 @@ Freeball `F`, Subzonen A–D, Setter-Calls `K`, Angriffskombinationen, Custom-Co
 
 ```
 RALLY      := ENTRY ('.' ENTRY)*          ; '.' = Ballübergang zur Aktion danach
-ENTRY      := ACTION | SUB | TIMEOUT | POINT | ROTATION | SIDESWITCH
+ENTRY      := ACTION | SUB | TIMEOUT | POINT | ROTATION
 ACTION     := TEAM? PLAYER SKILL SERVETYPE? EFFECT? ZONES?
 TEAM       := '*'  (Heim, weglassbar)  |  'a'  (Gast)
 PLAYER     := DIGIT{1,2}                   ; Trikotnummer
 SKILL      := 'S'|'R'|'A'|'B'|'D'|'E'      ; Serve/Reception/Attack/Block/Dig/Set
-SERVETYPE  := 'Q'|'M'|'T'                  ; nur nach S: Q=Sprung, M=Flatter, T=Sprungflatter
-EFFECT     := '#'|'+'|'!'|'-'|'/'|'='      ; perfekt/positiv/neutral/negativ/overpass/Fehler
+SERVETYPE  := 'Q'|'H'|'M'|'T'               ; nur nach S: Q=Sprungaufschlag, H=Flatteraufschlag, M=Sprungflatterer, T=Antäuschen Flatter→Sprungaufschlag
+EFFECT     := '#'|'+'|'!'|'-'|'/'|'='      ; Bedeutung skill-abhängig, siehe Effekt-Tabelle unten
 ZONES      := DIGIT DIGIT?                 ; Startzone, optional Endzone (1–9)
 SUB        := TEAM? 'C' PLAYER ':' PLAYER  ; z.B. C11:24  (raus:rein)
 TIMEOUT    := TEAM? 'T'
 POINT      := 'P' | 'Pa'                   ; manuelle Punktvergabe Heim/Gast
-ROTATION   := 'Z' DIGIT                    ; Setter-Rotation 1–6 setzen
-SIDESWITCH := 'I' ('1'|'2')               ; Seite 1/2
+ROTATION   := 'I' DIGIT                    ; Rotation 1–6 des Teams setzen
 ```
 
 Beispiele (aus VS-Manual, Phase-1-reduziert):
@@ -115,12 +114,27 @@ Beispiele (aus VS-Manual, Phase-1-reduziert):
 - `7R#1` → Heim #7, Annahme perfekt, Zone 1
 - `14A#5.a3B=` → Heim #14 Angriff perfekt Zone 5 **.** Gast #3 Block Fehler
 
+### Effekt-Tabelle (skill-spezifisch)
+
+| Symbol | S (Serve) | R (Reception) | B (Block) | D (Dig) |
+|--------|-----------|----------------|-----------|---------|
+| `#` | Ass | perfekt (4) | Stuff/Punkt | Gegenangriff möglich |
+| `+` | Annahme schwer, keine Kombination | gut (3) | berührt, Gegenangriff möglich | Gegenangriff möglich |
+| `!` | Annahme auf 3m-Linie | 3m-Linie (2) | Gegner deckt & greift erneut an | *(generic)* |
+| `-` | Annahme leicht, Kombination möglich | schwach (1) | *(generic)* | *(generic)* |
+| `/` | Rückschlag ins eigene Feld | Overpass (0.5) | Netzfehler | Ball zurück zum Angreifer |
+| `=` | Fehler | Fehler (0) | Block-Out | Fehler/Punktverlust |
+
+Attack (A) und Set (E) nutzen die generischen Labels (`# perfekt, + positiv, ! neutral, - negativ,
+/ Weiterspiel, = Fehler`) — Bedeutungen für diese beiden Skills sind im Manual nicht dokumentiert
+(nicht verifiziert). Zellen oben mit *(generic)* fallen ebenfalls auf diese Labels zurück.
+
 ### Auto-Scoring + Auto-Rotation (Kernlogik, TDD)
 - **Punkt automatisch** aus letzter Action ableiten: eigener `#`-Abschluss (Serve-Ass,
   Angriff-Kill, Block) → eigener Punkt; eigener `=`-Fehler → Gegnerpunkt; Annahme `=`
   → Aufschlag-Ass für Gegner. `P`/`Pa` überschreibt manuell.
 - **Rotation automatisch:** Side-out (Aufschlagrecht wechselt) → annehmendes Team rotiert
-  um 1 Position. `Z` überschreibt manuell.
+  um 1 Position. `I` überschreibt manuell.
 - Beides reine Funktion `deriveOutcome(rally) → {pointTeam, newRotations, newScore}` —
   isoliert testbar.
 

@@ -1,8 +1,9 @@
 import React from 'react';
-import { ClipboardList, Plus, Trash2 } from 'lucide-react';
+import { ClipboardList, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import type { MatchRow } from '@shared/types';
 import { useMatchesStore } from '@renderer/store/matches.store';
 import { useTeamsStore } from '@renderer/store/teams.store';
+import { useUIStore } from '@renderer/store/ui.store';
 import { Page } from '@renderer/components/ui/Page';
 import { Button, IconButton } from '@renderer/components/ui/Button';
 import { DataTable } from '@renderer/components/ui/DataTable';
@@ -15,6 +16,7 @@ import { matchesApi } from '@renderer/api/matches.api';
 export function MatchList() {
   const { matches, load, create, update, remove, error } = useMatchesStore();
   const { teams, load: loadTeams } = useTeamsStore();
+  const openTab = useUIStore((s) => s.openTab);
   const [open, setOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<number | null>(null);
   const [form, setForm] = React.useState<MatchFormValues>(emptyMatch());
@@ -92,17 +94,32 @@ export function MatchList() {
             {
               key: 'actions',
               header: '',
-              className: 'w-12 text-right',
+              className: 'w-20 text-right',
               render: (m) => (
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteTarget(m);
-                  }}
-                  aria-label="Löschen"
-                >
-                  <Trash2 size={15} />
-                </IconButton>
+                <div className="flex items-center justify-end gap-1">
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTab({
+                        type: 'scouting',
+                        label: `${m.home_team_name} vs ${m.away_team_name}`,
+                        params: { matchId: m.id },
+                      });
+                    }}
+                    aria-label="Scouten"
+                  >
+                    <PlayCircle size={15} />
+                  </IconButton>
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(m);
+                    }}
+                    aria-label="Löschen"
+                  >
+                    <Trash2 size={15} />
+                  </IconButton>
+                </div>
               ),
             },
           ]}

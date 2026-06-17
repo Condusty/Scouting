@@ -27,8 +27,13 @@ export const IPC = {
   MATCHES_UPDATE: 'matches:update',
   MATCHES_DELETE: 'matches:delete',
 
+  SET_UPSERT:        'set:upsert',
+  SETS_FOR_MATCH:    'set:list-for-match',
+
   RALLY_CREATE:   'rally:create',
+  RALLY_UPDATE:   'rally:update',
   RALLY_DELETE:   'rally:delete',
+  RALLIES_LIST:   'rallies:list',
   ACTION_CREATE:  'action:create',
   ACTION_DELETE:  'action:delete',
   ACTION_INSERT:  'action:insert',
