@@ -1,14 +1,17 @@
 import React from 'react';
+import { RotateCcw, RotateCw, ClipboardList } from 'lucide-react';
 import type { TeamPlayer, LineupSelection, TeamSide } from '@shared/types';
 import { Dialog } from '@renderer/components/ui/Dialog';
 import { Field } from '@renderer/components/ui/Field';
-import { Button } from '@renderer/components/ui/Button';
+import { Button, IconButton } from '@renderer/components/ui/Button';
 import { cn } from '@renderer/lib/cn';
 
 export interface LineupDialogProps {
   open: boolean;
   homeRoster: TeamPlayer[];
   awayRoster: TeamPlayer[];
+  previousHomeLineup?: number[];
+  previousAwayLineup?: number[];
   onConfirm: (selection: LineupSelection) => void;
   onCancel: () => void;
 }
@@ -32,18 +35,30 @@ function LiberoBadge() {
   );
 }
 
+function rotateForward(lineup: (number | null)[]): (number | null)[] {
+  return [...lineup.slice(1), lineup[0]];
+}
+
+function rotateBackward(lineup: (number | null)[]): (number | null)[] {
+  return [lineup[lineup.length - 1], ...lineup.slice(0, -1)];
+}
+
 function LineupColumn({
   label,
   roster,
   lineup,
   onPlace,
   onClear,
+  onRotateForward,
+  onRotateBackward,
 }: {
   label: string;
   roster: TeamPlayer[];
   lineup: (number | null)[];
   onPlace: (position: number, shirt: number) => void;
   onClear: (position: number) => void;
+  onRotateForward: () => void;
+  onRotateBackward: () => void;
 }) {
   const placed = new Set(lineup.filter((v): v is number => v !== null));
   const bench = roster.filter((p) => !placed.has(p.shirt_number));
@@ -76,9 +91,17 @@ function LineupColumn({
         </div>
       </div>
       <div>
-        <span className="mb-1.5 block text-center text-[10px] uppercase tracking-wide text-zinc-500">
-          Netz ────────────
-        </span>
+        <div className="mb-1.5 flex items-center gap-2">
+          <IconButton onClick={onRotateBackward} aria-label="Rotation zurück" title="Eine Rotation zurück">
+            <RotateCcw size={13} />
+          </IconButton>
+          <span className="flex-1 text-center text-[10px] uppercase tracking-wide text-zinc-500">
+            Netz ────────────
+          </span>
+          <IconButton onClick={onRotateForward} aria-label="Rotation vor" title="Eine Rotation vor">
+            <RotateCw size={13} />
+          </IconButton>
+        </div>
         <div className="grid grid-cols-3 gap-1.5">
           {GRID_POSITIONS.map((pos) => {
             const shirt = lineup[pos - 1];
@@ -115,10 +138,18 @@ function LineupColumn({
   );
 }
 
-export function LineupDialog({ open, homeRoster, awayRoster, onConfirm, onCancel }: LineupDialogProps) {
+export function LineupDialog({ open, homeRoster, awayRoster, previousHomeLineup, previousAwayLineup, onConfirm, onCancel }: LineupDialogProps) {
   const [homeLineup, setHomeLineup] = React.useState<(number | null)[]>(Array(6).fill(null));
   const [awayLineup, setAwayLineup] = React.useState<(number | null)[]>(Array(6).fill(null));
   const [servingTeam, setServingTeam] = React.useState<TeamSide | null>(null);
+
+  const hasPrevious = previousHomeLineup !== undefined && previousAwayLineup !== undefined;
+
+  const loadPrevious = () => {
+    if (!hasPrevious) return;
+    setHomeLineup([...previousHomeLineup]);
+    setAwayLineup([...previousAwayLineup]);
+  };
 
   const placeAt =
     (setLineup: React.Dispatch<React.SetStateAction<(number | null)[]>>) =>
@@ -169,9 +200,31 @@ export function LineupDialog({ open, homeRoster, awayRoster, onConfirm, onCancel
       }
     >
       <div className="flex flex-col gap-4">
+        {hasPrevious && (
+          <Button variant="secondary" onClick={loadPrevious} className="self-start">
+            <ClipboardList size={14} />
+            Vorherige Aufstellung laden
+          </Button>
+        )}
         <div className="grid grid-cols-2 gap-4">
-          <LineupColumn label="Heim" roster={homeRoster} lineup={homeLineup} onPlace={placeAt(setHomeLineup)} onClear={clearAt(setHomeLineup)} />
-          <LineupColumn label="Gast" roster={awayRoster} lineup={awayLineup} onPlace={placeAt(setAwayLineup)} onClear={clearAt(setAwayLineup)} />
+          <LineupColumn
+            label="Heim"
+            roster={homeRoster}
+            lineup={homeLineup}
+            onPlace={placeAt(setHomeLineup)}
+            onClear={clearAt(setHomeLineup)}
+            onRotateForward={() => setHomeLineup(rotateForward(homeLineup))}
+            onRotateBackward={() => setHomeLineup(rotateBackward(homeLineup))}
+          />
+          <LineupColumn
+            label="Gast"
+            roster={awayRoster}
+            lineup={awayLineup}
+            onPlace={placeAt(setAwayLineup)}
+            onClear={clearAt(setAwayLineup)}
+            onRotateForward={() => setAwayLineup(rotateForward(awayLineup))}
+            onRotateBackward={() => setAwayLineup(rotateBackward(awayLineup))}
+          />
         </div>
         <Field label="Aufschlag">
           <div className="flex gap-2">

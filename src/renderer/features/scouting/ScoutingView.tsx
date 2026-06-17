@@ -22,6 +22,7 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
   const nextSet = useScoutingStore((s) => s.nextSet);
   const { activeTabId, closeTab } = useUIStore();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [prevLineup, setPrevLineup] = useState<{ home: number[]; away: number[] } | null>(null);
 
   useEffect(() => {
     void useScoutingStore.getState().startSession(matchId);
@@ -44,6 +45,8 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
           open={true}
           homeRoster={session.homeRoster}
           awayRoster={session.awayRoster}
+          previousHomeLineup={prevLineup?.home}
+          previousAwayLineup={prevLineup?.away}
           onConfirm={setLineup}
           onCancel={() => activeTabId && closeTab(activeTabId)}
         />
@@ -68,7 +71,10 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
                   : session.awayTeamName}{' '}
                 gewinnt {session.homeScore}:{session.awayScore}
               </span>
-              <Button onClick={() => void nextSet()}>Nächster Satz</Button>
+              <Button onClick={() => {
+                setPrevLineup({ home: session.homeLineup, away: session.awayLineup });
+                void nextSet();
+              }}>Nächster Satz</Button>
             </div>
           )}
           <div className="flex flex-1 overflow-hidden">
