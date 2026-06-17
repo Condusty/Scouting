@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList, PlayCircle, Plus, Trash2 } from 'lucide-react';
+import { BarChart2, ClipboardList, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import type { MatchRow } from '@shared/types';
 import { useMatchesStore } from '@renderer/store/matches.store';
 import { useTeamsStore } from '@renderer/store/teams.store';
@@ -109,6 +109,19 @@ export function MatchList() {
                     aria-label="Scouten"
                   >
                     <PlayCircle size={15} />
+                  </IconButton>
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTab({
+                        type: 'report',
+                        label: `Report: ${m.home_team_name} vs ${m.away_team_name}`,
+                        params: { matchId: m.id },
+                      });
+                    }}
+                    aria-label="Report"
+                  >
+                    <BarChart2 size={15} />
                   </IconButton>
                   <IconButton
                     onClick={(e) => {

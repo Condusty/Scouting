@@ -4,6 +4,7 @@ import { registerPlayersIPC } from './players.ipc';
 import { registerRosterIPC } from './roster.ipc';
 import { registerMatchesIPC } from './matches.ipc';
 import { registerScoutingIPC } from './scouting.ipc';
+import { registerReportIPC } from './report.ipc';
 
 export function registerAllIPC(): void {
   registerSeasonsIPC();
@@ -12,4 +13,5 @@ export function registerAllIPC(): void {
   registerRosterIPC();
   registerMatchesIPC();
   registerScoutingIPC();
+  registerReportIPC();
 }

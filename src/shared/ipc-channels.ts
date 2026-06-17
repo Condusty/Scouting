@@ -40,6 +40,8 @@ export const IPC = {
   SUB_CREATE:     'sub:create',
   TIMEOUT_CREATE: 'timeout:create',
 
+  ACTIONS_LIST:        'actions:list',
+  RALLIES_LIST_ALL:    'rallies:list-all',
   REPORT_MATCH:        'report:match',
   REPORT_PLAYER_STATS: 'report:player-stats',
 

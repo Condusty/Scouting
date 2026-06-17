@@ -1,7 +1,8 @@
 import React from 'react';
-import { Circle } from 'lucide-react';
+import { Circle, HelpCircle } from 'lucide-react';
 import type { TeamSide } from '@shared/types';
 import { cn } from '@renderer/lib/cn';
+import { IconButton } from '@renderer/components/ui/Button';
 
 export interface ScoreBoardProps {
   setNumber: number;
@@ -10,6 +11,7 @@ export interface ScoreBoardProps {
   servingTeam: TeamSide;
   homeTeamName: string;
   awayTeamName: string;
+  onOpenHelp?: () => void;
 }
 
 function TeamScore({
@@ -52,6 +54,7 @@ export function ScoreBoard({
   servingTeam,
   homeTeamName,
   awayTeamName,
+  onOpenHelp,
 }: ScoreBoardProps) {
   return (
     <div className="flex h-12 shrink-0 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-3">
@@ -71,6 +74,11 @@ export function ScoreBoard({
         isServing={servingTeam === 'away'}
         align="right"
       />
+      {onOpenHelp && (
+        <IconButton onClick={onOpenHelp} aria-label="Notation-Referenz">
+          <HelpCircle size={15} />
+        </IconButton>
+      )}
     </div>
   );
 }

@@ -1,0 +1,221 @@
+
+<style>
+  .vs-root { padding: 1rem 0; font-family: var(--font-sans); }
+  .vs-section { margin-bottom: 1.5rem; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+  .vs-section-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; user-select: none; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .vs-section-header:hover { background: var(--color-background-tertiary); }
+  .vs-icon { font-size: 18px; color: var(--color-text-secondary); }
+  .vs-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); flex: 1; }
+  .vs-count { font-size: 12px; color: var(--color-text-secondary); background: var(--color-background-tertiary); border: 0.5px solid var(--color-border-tertiary); border-radius: 20px; padding: 2px 9px; }
+  .vs-chevron { font-size: 14px; color: var(--color-text-secondary); transition: transform 0.2s; }
+  .vs-chevron.open { transform: rotate(180deg); }
+  .vs-body { padding: 12px 16px; display: none; }
+  .vs-body.open { display: block; }
+  .vs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .vs-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: var(--border-radius-md); }
+  .vs-item:hover { background: var(--color-background-secondary); }
+  .vs-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .vs-item-text { font-size: 13px; color: var(--color-text-primary); line-height: 1.5; }
+  .vs-item-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 1px; }
+  .vs-priority { font-size: 11px; font-weight: 500; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+  .p-core { background: #E1F5EE; color: #0F6E56; }
+  .p-mid { background: #FAEEDA; color: #854F0B; }
+  .p-adv { background: #FBEAF0; color: #993556; }
+  .legend { display: flex; gap: 16px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-secondary); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  @media (prefers-color-scheme: dark) {
+    .p-core { background: #085041; color: #9FE1CB; }
+    .p-mid { background: #633806; color: #FAC775; }
+    .p-adv { background: #72243E; color: #F4C0D1; }
+  }
+</style>
+
+<div class="vs-root">
+  <h2 class="sr-only">VolleyStation Feature-Übersicht – alle Funktionsbereiche</h2>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Grundfunktion (Phase 1)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#BA7517"></div>Mittlere Priorität (Phase 2)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#D4537E"></div>Erweitert / Optional (Phase 3)</div>
+  </div>
+
+  <div id="sections"></div>
+</div>
+
+<script>
+const sections = [
+  {
+    icon: "ti-database",
+    title: "Datenverwaltung",
+    color: "#1D9E75",
+    items: [
+      { text: "Saisons erstellen & verwalten", sub: "Name, Code, Start-/Enddatum, Standard-Videoverzeichnis", p: "core" },
+      { text: "Teams anlegen & importieren", sub: "Name, Code, Trainer, Saison-Zuweisung", p: "core" },
+      { text: "Spieler-Datenbank", sub: "Nummer, Code, Name, Position, Größe, Gewicht, Reichweite", p: "core" },
+      { text: "Mannschaftsaufstellung", sub: "Drag & Drop ins Feld, Libero-Zone, Setter-Zuweisung", p: "core" },
+      { text: "Spieler-Codes (unique)", sub: "z. B. SMI-JOH – werden für Coding-System verwendet", p: "core" },
+      { text: "Teams zusammenführen (Merge)", sub: "Für Teams unter verschiedenen Namen in Ligen", p: "mid" },
+      { text: "Spieler zusammenführen (Merge)", sub: "Doppeleinträge konsolidieren", p: "mid" },
+      { text: "Spiele importieren (.dvw)", sub: "DataVolley-Format Import", p: "core" },
+      { text: "Spiele exportieren (.dvw / .xml / .vsm)", sub: "DVW, Hudl Sportscode XML, VolleyStation VSM", p: "mid" },
+    ]
+  },
+  {
+    icon: "ti-keyboard",
+    title: "Code-basiertes Scouting (Live)",
+    color: "#1D9E75",
+    items: [
+      { text: "Kommandozeile (Texteingabe)", sub: "Codes werden live während des Spiels eingetippt", p: "core" },
+      { text: "Heimteam / Gastteam Präfix", sub: "Kein Präfix = Heim, 'a' = Gast", p: "core" },
+      { text: "Aufschlag-Codes (S)", sub: "Typ: M=Float, Q=Jump, P=Jump-Float; Effekt: #=Ass, =Fehler, +/-/!/", p: "core" },
+      { text: "Annahme-Codes (R)", sub: "Effekte: #=perfekt, +=gut, !=neutral, -=schlecht, /=Übergang, ==Fehler", p: "core" },
+      { text: "Angriff-Codes (A/X/V/...)", sub: "Kombinationscodes: Tempo + Position + Zone + Effekt", p: "core" },
+      { text: "Block-Codes (B)", sub: "Verknüpft mit Angriff via Punkt (.)", p: "core" },
+      { text: "Abwehr-Codes (D)", sub: "Baggern/Feldsicherung", p: "core" },
+      { text: "Zuspiel-Codes (E)", sub: "Zone, Typ, Effekt", p: "core" },
+      { text: "Freeball-Codes (F)", sub: "Behandlung als eigene Spielsituation", p: "mid" },
+      { text: "Verbundcodes mit Punkt (.)", sub: "Aufschlag.Annahme und Angriff.Block in einem Code", p: "core" },
+      { text: "Zonen-System (1–9, A/B/C/D)", sub: "Startzone & Endzone für alle Spielelemente", p: "core" },
+      { text: "Setter-Calls (K-Codes)", sub: "Angriffssystem definieren: KA, KB, K1, K2 ...", p: "mid" },
+      { text: "Angriffskombinationen", sub: "Tempo (X=schnell, V=hoch) + Netzposition + Zone", p: "mid" },
+      { text: "Substitution per Code", sub: "C11:24 = Spieler 11 raus, Spieler 24 rein", p: "core" },
+      { text: "Timeout per Code (T)", sub: "Wird im Spielprotokoll vermerkt", p: "core" },
+      { text: "Punkte manuell vergeben (P)", sub: "Am Rallyende, falls kein Effektcode gesetzt", p: "core" },
+      { text: "Seitenwechsel (Z1 / I2)", sub: "Setter-Position & Rotation manuell setzen", p: "core" },
+      { text: "Fehlerhafte Codes zulassen (Shift+Enter)", sub: "Code trotz Validierungsfehler speichern", p: "mid" },
+      { text: "Code-Suche im Spiel", sub: "Codes filtern und hervorheben; nach Rotation filtern", p: "mid" },
+      { text: "Code einfügen / löschen (Insert/Delete)", sub: "Codes nachträglich im Spielprotokoll bearbeiten", p: "mid" },
+    ]
+  },
+  {
+    icon: "ti-cards",
+    title: "Cards-Modus (alternativ, code-frei)",
+    color: "#BA7517",
+    items: [
+      { text: "Basic Cards", sub: "Spieler, Spielelement, Effekt per Klick auswählen", p: "mid" },
+      { text: "Advanced Cards", sub: "Erweiterte Optionen mit mehr Details", p: "adv" },
+      { text: "Intelligente Filterung", sub: "Cards zeigen nur valide Folgeoptionen", p: "mid" },
+    ]
+  },
+  {
+    icon: "ti-settings",
+    title: "Konfiguration & Einstellungen",
+    color: "#BA7517",
+    items: [
+      { text: "Standard-Codes (Default codes)", sub: "Automatisch fehlende Code-Teile ergänzen", p: "mid" },
+      { text: "Benutzerdefinierte Tastenkürzel", sub: "Alle Symbole und Hotkeys frei belegbar", p: "mid" },
+      { text: "Match Flow konfigurieren", sub: "Effekte, Seitenwechsel, Punktvergabe, Folge-Codes anpassen", p: "adv" },
+      { text: "Effizienzdefinition", sub: "(Siege − Niederlagen) / Gesamt – frei konfigurierbar", p: "mid" },
+      { text: "Coding-Modus: Predictive / Raw", sub: "Predictive für Anfänger, Raw für Experten (Zeitsynchronisation)", p: "mid" },
+      { text: "Combination Maps", sub: "Code-Konverter für importierte Fremd-Dateien", p: "adv" },
+      { text: "Mehrsprachigkeit", sub: "Sprache der Benutzeroberfläche wählbar", p: "mid" },
+      { text: "Saison-Einstellungen kopieren", sub: "Vorherige Saisonkonfiguration übernehmen", p: "mid" },
+    ]
+  },
+  {
+    icon: "ti-chart-bar",
+    title: "Reports & Statistiken",
+    color: "#BA7517",
+    items: [
+      { text: "Numerische Match-Reports", sub: "Aufschlag, Annahme, Angriff, Block, Abwehr, Zuspiel", p: "core" },
+      { text: "Spieler-gefilterte Statistiken", sub: "Jede Stat nach Spieler auswertbar", p: "core" },
+      { text: "Rotationsanalyse", sub: "Statistiken nach Rotationsstellung aufgeschlüsselt", p: "mid" },
+      { text: "Setter-Verteilungsreport", sub: "Ballverteilung nach Zone, Rotations, Annahmequalität, Kill-Rate", p: "mid" },
+      { text: "By-Skill-Report", sub: "Stärken/Schwächen pro Spielelement identifizieren", p: "mid" },
+      { text: "Saison-Zusammenfassung", sub: "Mehrere Spiele aggregiert auswerten", p: "mid" },
+      { text: "Report-Vorlagen (Presets)", sub: "Häufige Analysen mit einem Klick abrufen", p: "adv" },
+      { text: "Reports drucken / als Bild exportieren", sub: "Für Besprechungen am Spielfeldrand", p: "mid" },
+    ]
+  },
+  {
+    icon: "ti-table",
+    title: "Spreadsheet-Modul (VQL)",
+    color: "#D4537E",
+    items: [
+      { text: "Eigene Tabellenkalkulationen", sub: "VS-eigene Spreadsheet-Engine mit Formeln", p: "adv" },
+      { text: "VS-Formeln (VSCOUNT, VSCOURT, VSPLAYER...)", sub: "Volleyball Query Language für benutzerdefinierte Abfragen", p: "adv" },
+      { text: "Heatmaps & Felder direkt in Tabellen", sub: "Visualisierungen eingebettet in Spreadsheets", p: "adv" },
+      { text: "Show on Video aus Zelle", sub: "Strg+Klick auf Zelle → direkt zum Video", p: "adv" },
+      { text: "VolleyStation Report (5 Sheets)", sub: "Fertige Tabellenvorlagen für Saisonanalyse", p: "adv" },
+      { text: "Saisonübergreifende Spreadsheets", sub: "Mehrere Spiele/Saisons in einer Tabelle", p: "adv" },
+    ]
+  },
+  {
+    icon: "ti-video",
+    title: "Videoanalyse & Montage",
+    color: "#D4537E",
+    items: [
+      { text: "Video verknüpfen", sub: "Lokale Datei oder Streaming-URL einbinden", p: "mid" },
+      { text: "Code-Video-Synchronisation", sub: "Codes automatisch mit Videozeitpunkten verknüpfen", p: "mid" },
+      { text: "Videoanalyse-Screen", sub: "Spielzüge filtern, suchen, abspielen", p: "mid" },
+      { text: "Video-Montage erstellen", sub: "Clips nach Filterkriterien zusammenstellen", p: "adv" },
+      { text: "Flags & Kategorien", sub: "Einzelne Rallies markieren und kategorisieren (1–6)", p: "adv" },
+      { text: "Clips neu anordnen (Drag & Drop)", sub: "Montagereihenfolge anpassen", p: "adv" },
+      { text: "Video exportieren", sub: "Montagen als Videodatei speichern", p: "adv" },
+      { text: "VolleyStation Streamer", sub: "Live-Streaming-Adresse als Videoquelle", p: "adv" },
+      { text: "Tablet-Verbindung (QR-Code)", sub: "Zweites Gerät am Spielfeldrand verbinden", p: "adv" },
+    ]
+  },
+  {
+    icon: "ti-layout-grid",
+    title: "Benutzeroberfläche & Navigation",
+    color: "#1D9E75",
+    items: [
+      { text: "Tab-basierte Oberfläche", sub: "Mehrere Spiele/Reports gleichzeitig offen (wie Browser)", p: "core" },
+      { text: "Drei Layouts (Scout / Show / Synchronize)", sub: "Ansicht je nach Aufgabe wechselbar", p: "mid" },
+      { text: "Spielprotokoll (Codeliste)", sub: "Alle Codes chronologisch einsehbar und editierbar", p: "core" },
+      { text: "Validierungsfehler-Liste", sub: "Fehler im Code-Protokoll anzeigen und beheben", p: "mid" },
+      { text: "Match-Kommentar", sub: "Freitextnotizen zum Spiel speichern", p: "mid" },
+      { text: "Seitenwechsel-Funktion", sub: "Heim- und Gastteam tauschen", p: "mid" },
+    ]
+  },
+  {
+    icon: "ti-cloud",
+    title: "Dual Coding & Kollaboration",
+    color: "#D4537E",
+    items: [
+      { text: "Dual Coding", sub: "Zwei Personen scouten gleichzeitig ein Spiel", p: "adv" },
+      { text: "Remote Scouting", sub: "Matches aus Videos / Streams von überall scouten", p: "adv" },
+      { text: "Lizenz-/Account-System", sub: "Online-Verifizierung, 7 Tage Offline-Nutzung", p: "adv" },
+      { text: "PLPS / VolleyMetrics Integration", sub: "Automatischer Import von Serverdaten", p: "adv" },
+    ]
+  },
+];
+
+const container = document.getElementById('sections');
+sections.forEach((sec, i) => {
+  const el = document.createElement('div');
+  el.className = 'vs-section';
+  const items = sec.items.map(item => `
+    <div class="vs-item">
+      <div class="vs-dot" style="background:${item.p === 'core' ? '#1D9E75' : item.p === 'mid' ? '#BA7517' : '#D4537E'}"></div>
+      <div>
+        <div class="vs-item-text">${item.text}${item.p === 'core' ? '<span class="vs-priority p-core">Phase 1</span>' : item.p === 'mid' ? '<span class="vs-priority p-mid">Phase 2</span>' : '<span class="vs-priority p-adv">Phase 3</span>'}</div>
+        <div class="vs-item-sub">${item.sub}</div>
+      </div>
+    </div>
+  `).join('');
+  el.innerHTML = `
+    <div class="vs-section-header" onclick="toggle(${i})">
+      <i class="ti ${sec.icon} vs-icon" style="color:${sec.color}" aria-hidden="true"></i>
+      <span class="vs-title">${sec.title}</span>
+      <span class="vs-count">${sec.items.length} Features</span>
+      <i class="ti ti-chevron-down vs-chevron" id="chev-${i}" aria-hidden="true"></i>
+    </div>
+    <div class="vs-body" id="body-${i}"><div class="vs-grid">${items}</div></div>
+  `;
+  container.appendChild(el);
+  if (i < 3) {
+    el.querySelector('.vs-body').classList.add('open');
+    el.querySelector('.vs-chevron').classList.add('open');
+  }
+});
+
+function toggle(i) {
+  const body = document.getElementById('body-' + i);
+  const chev = document.getElementById('chev-' + i);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+</script>
