@@ -8,6 +8,8 @@ import type {
   RallyScoringUpdate,
   CreateSubstitutionDTO,
   CreateTimeoutDTO,
+  SetRecord,
+  UpsertSetDTO,
 } from '@shared/types';
 import { mapDbError } from './errors';
 
@@ -240,6 +242,29 @@ export function createSubstitution(db: Database.Database, dto: CreateSubstitutio
   } catch (e) {
     mapDbError(e, { entity: 'Wechsel' });
   }
+}
+
+export function upsertSet(db: Database.Database, dto: UpsertSetDTO): void {
+  db.prepare(
+    `INSERT INTO sets (match_id, set_number, home_score, away_score, home_lineup, away_lineup, serving_team)
+     VALUES (@match_id, @set_number, 0, 0, @home_lineup, @away_lineup, @serving_team)
+     ON CONFLICT(match_id, set_number) DO UPDATE SET
+       home_lineup  = excluded.home_lineup,
+       away_lineup  = excluded.away_lineup,
+       serving_team = excluded.serving_team`,
+  ).run({
+    match_id:     dto.matchId,
+    set_number:   dto.setNumber,
+    home_lineup:  JSON.stringify(dto.homeLineup),
+    away_lineup:  JSON.stringify(dto.awayLineup),
+    serving_team: dto.servingTeam,
+  });
+}
+
+export function getSetsForMatch(db: Database.Database, matchId: number): SetRecord[] {
+  return db
+    .prepare('SELECT * FROM sets WHERE match_id = ? ORDER BY set_number')
+    .all(matchId) as SetRecord[];
 }
 
 export function createTimeout(db: Database.Database, dto: CreateTimeoutDTO): void {
