@@ -5,6 +5,7 @@ import type {
   RallyScoringUpdate,
   CreateSubstitutionDTO,
   CreateTimeoutDTO,
+  UpsertSetDTO,
 } from '@shared/types';
 import { IPC } from '@shared/ipc-channels';
 import { getDb } from '../db/connection';
@@ -42,4 +43,8 @@ export function registerScoutingIPC(): void {
   );
   handle(IPC.SUB_CREATE, (_e, dto: CreateSubstitutionDTO) => repo.createSubstitution(getDb(), dto));
   handle(IPC.TIMEOUT_CREATE, (_e, dto: CreateTimeoutDTO) => repo.createTimeout(getDb(), dto));
+  handle(IPC.SET_UPSERT, (_e, dto: UpsertSetDTO) => repo.upsertSet(getDb(), dto));
+  handle(IPC.SETS_FOR_MATCH, (_e, { matchId }: { matchId: number }) =>
+    repo.getSetsForMatch(getDb(), matchId),
+  );
 }
