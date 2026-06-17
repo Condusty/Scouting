@@ -124,7 +124,7 @@ function AttackZoneChart({ pairs, rxFilter }: { pairs: RxAttackPair[]; rxFilter:
   const maxCount = Math.max(0, ...[...byZone.values()].map((v) => v.total));
 
   return (
-    <svg viewBox="0 0 280 260" className="w-full max-w-xs">
+    <svg viewBox="0 0 280 260" className="w-full max-w-sm">
       {/* net indicator */}
       <text x="140" y="8" textAnchor="middle" fontSize="7" fill="#3b82f6" letterSpacing="2">NETZ</text>
       <line x1="10" y1="11" x2="270" y2="11" stroke="#60a5fa" strokeWidth="1.5" strokeDasharray="4 3" />
@@ -226,22 +226,22 @@ export function ReceptionAttackSection({ pairs, rxReport, atkReport }: Reception
         </div>
       )}
 
-      {/* Quality matrix */}
+      {/* Quality matrix + Attack zone chart side by side */}
       {pairs.length > 0 && (
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Annahme-Qualität → Angriff-Qualität
-          </h3>
-          <QualityMatrix pairs={pairs} />
-        </div>
-      )}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* matrix */}
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Annahme-Qualität → Angriff-Qualität
+            </h3>
+            <QualityMatrix pairs={pairs} />
+          </div>
 
-      {/* Attack zone chart */}
-      {pairs.length > 0 && (
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Angriff-Landezonen (nach Annahmequali. filtern)
-          </h3>
+          {/* chart */}
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Angriff-Landezonen (nach Annahmequali. filtern)
+            </h3>
           <div className="flex flex-wrap gap-1 mb-3">
             {usedRx.map((e) => (
               <button
@@ -261,8 +261,9 @@ export function ReceptionAttackSection({ pairs, rxReport, atkReport }: Reception
           </div>
           <AttackZoneChart pairs={pairs} rxFilter={rxFilter} />
           <p className="mt-1 text-[10px] text-zinc-600">
-            Helligkeit = Trefferhäufigkeit · #% = Kill-Quote · Zahlenwert = Gesamttreffer
+            Helligkeit = Häufigkeit · #% = Kill-Quote · Zahl = Treffer
           </p>
+          </div>
         </div>
       )}
 

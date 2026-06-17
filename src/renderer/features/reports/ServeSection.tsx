@@ -253,7 +253,7 @@ export function ServeSection({ arrows, report }: ServeSectionProps) {
 
       {/* per-player charts */}
       {players.length > 0 && (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
           {players.map((num) => (
             <PlayerServeChart key={num} playerNum={num} arrows={byPlayer.get(num)!} />
           ))}
