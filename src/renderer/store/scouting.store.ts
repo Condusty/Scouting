@@ -7,13 +7,14 @@ import type {
   ScoringState,
   ScoutingSession,
   ScoutingValidationError,
+  SetRecord,
 } from '@shared/types';
 import { matchesApi } from '@renderer/api/matches.api';
 import { rosterApi } from '@renderer/api/roster.api';
 import { scoutingApi } from '@renderer/api/scouting.api';
 import { parseCode } from '@renderer/lib/code-parser';
 import { validateRally } from '@renderer/lib/code-validator';
-import { deriveOutcome, computeRallyOutcome } from '@renderer/lib/scoring';
+import { deriveOutcome, computeRallyOutcome, isSetComplete } from '@renderer/lib/scoring';
 
 interface ScoutingStore {
   session: ScoutingSession | null;
@@ -23,10 +24,11 @@ interface ScoutingStore {
   pendingRally: ParsedRally | null;
   needsLineup: boolean;
   initialState: ScoringState | null;
+  setCompleted: boolean;
   error: string | null;
 
-  startSession: (matchId: number, setNumber: number) => Promise<void>;
-  setLineup: (selection: LineupSelection) => void;
+  startSession: (matchId: number) => Promise<void>;
+  setLineup: (selection: LineupSelection) => Promise<void>;
   setInput: (raw: string) => void;
   submitCode: () => Promise<void>;
   updateRally: (rallyId: number, rawInput: string) => Promise<void>;
@@ -34,13 +36,6 @@ interface ScoutingStore {
   nextSet: () => Promise<void>;
 }
 
-/**
- * Reduces a single completed rally onto a scoring state, reproducing the
- * outcome it originally produced (the rally's `point_team` short-circuits
- * `determinePointTeam`, so this matches the original `deriveOutcome` call).
- * Manual `I` rotation overrides applied at submit-time aren't replayed here -
- * acceptable Phase-1 edge case (see computeRallyOutcome).
- */
 function reduceRally(rally: Rally, state: ScoringState): ScoringState {
   const outcome = deriveOutcome(
     {
@@ -65,51 +60,116 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
   pendingRally: null,
   needsLineup: false,
   initialState: null,
+  setCompleted: false,
   error: null,
 
-  startSession: async (matchId, setNumber) => {
+  startSession: async (matchId) => {
     try {
       const match = await matchesApi.get(matchId);
       const [homeRoster, awayRoster] = await Promise.all([
         rosterApi.get(match.home_team_id),
         rosterApi.get(match.away_team_id),
       ]);
+
+      const allSets = await scoutingApi.getSetsForMatch(matchId);
+      const activeSet: SetRecord | undefined = allSets
+        .filter((s) => s.serving_team !== null)
+        .reduce<SetRecord | undefined>(
+          (max, s) => (max === undefined || s.set_number > max.set_number ? s : max),
+          undefined,
+        );
+
+      const setNumber = activeSet?.set_number ?? 1;
       const rallies = await scoutingApi.listRallies(matchId, setNumber);
 
-      set({
-        session: {
-          matchId,
-          setNumber,
+      if (activeSet?.home_lineup && activeSet.away_lineup && activeSet.serving_team) {
+        const homeLineup = JSON.parse(activeSet.home_lineup) as number[];
+        const awayLineup = JSON.parse(activeSet.away_lineup) as number[];
+        const servingTeam = activeSet.serving_team;
+
+        const initialState: ScoringState = {
           homeScore: 0,
           awayScore: 0,
           rotationHome: 1,
           rotationAway: 1,
-          servingTeam: 'home',
-          homeTeamId: match.home_team_id,
-          awayTeamId: match.away_team_id,
-          homeTeamName: match.home_team.name,
-          awayTeamName: match.away_team.name,
-          homeRoster,
-          awayRoster,
-          homeLineup: [],
-          awayLineup: [],
-        },
-        rallies,
-        needsLineup: true,
-        initialState: null,
-        currentInput: '',
-        pendingRally: null,
-        validationErrors: [],
-        error: null,
-      });
+          servingTeam,
+        };
+
+        let state = initialState;
+        for (const rally of rallies) state = reduceRally(rally, state);
+
+        set({
+          session: {
+            matchId,
+            setNumber,
+            homeScore: state.homeScore,
+            awayScore: state.awayScore,
+            rotationHome: state.rotationHome,
+            rotationAway: state.rotationAway,
+            servingTeam: state.servingTeam,
+            homeTeamId: match.home_team_id,
+            awayTeamId: match.away_team_id,
+            homeTeamName: match.home_team.name,
+            awayTeamName: match.away_team.name,
+            homeRoster,
+            awayRoster,
+            homeLineup,
+            awayLineup,
+          },
+          rallies,
+          needsLineup: false,
+          initialState,
+          setCompleted: isSetComplete(state.homeScore, state.awayScore, setNumber),
+          currentInput: '',
+          pendingRally: null,
+          validationErrors: [],
+          error: null,
+        });
+      } else {
+        set({
+          session: {
+            matchId,
+            setNumber,
+            homeScore: 0,
+            awayScore: 0,
+            rotationHome: 1,
+            rotationAway: 1,
+            servingTeam: 'home',
+            homeTeamId: match.home_team_id,
+            awayTeamId: match.away_team_id,
+            homeTeamName: match.home_team.name,
+            awayTeamName: match.away_team.name,
+            homeRoster,
+            awayRoster,
+            homeLineup: [],
+            awayLineup: [],
+          },
+          rallies: [],
+          needsLineup: true,
+          initialState: null,
+          setCompleted: false,
+          currentInput: '',
+          pendingRally: null,
+          validationErrors: [],
+          error: null,
+        });
+      }
     } catch (e) {
       set({ error: (e as Error).message });
     }
   },
 
-  setLineup: (selection) => {
+  setLineup: async (selection) => {
     const { session } = get();
     if (session === null) return;
+
+    void scoutingApi.upsertSet({
+      matchId: session.matchId,
+      setNumber: session.setNumber,
+      homeLineup: selection.homeLineup,
+      awayLineup: selection.awayLineup,
+      servingTeam: selection.servingTeam,
+    });
 
     set({
       session: {
@@ -205,6 +265,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         currentInput: '',
         pendingRally: null,
         validationErrors: [],
+        setCompleted: isSetComplete(outcome.homeScore, outcome.awayScore, session.setNumber),
         error: null,
       });
     } catch (e) {
@@ -226,13 +287,11 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
       return;
     }
 
-    // State before the edited rally, reduced from the start of the set.
     let state: ScoringState = initialState;
     for (let i = 0; i < index; i++) {
       state = reduceRally(rallies[i], state);
     }
 
-    // Cascade recompute: edited rally + every following rally, in order.
     const rally = rallies[index];
     let editedOutcome: ScoringState & { pointTeam: Rally['point_team'] } | null = null;
     const cascade: RallyScoringUpdate[] = [];
@@ -303,6 +362,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           rotationAway: state.rotationAway,
           servingTeam: state.servingTeam,
         },
+        setCompleted: isSetComplete(state.homeScore, state.awayScore, session.setNumber),
         error: null,
       });
     } catch (e) {
@@ -339,6 +399,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
         rotationAway: acc.rotationAway,
         servingTeam: acc.servingTeam,
       },
+      setCompleted: isSetComplete(acc.homeScore, acc.awayScore, session.setNumber),
       error: null,
     });
   },
@@ -362,6 +423,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
       validationErrors: [],
       initialState: null,
       needsLineup: true,
+      setCompleted: false,
     });
   },
 }));
