@@ -1,5 +1,27 @@
 import type { Action, Rally, Skill, Effect, TeamSide } from '@shared/types';
 
+export type ServeArrow = {
+  rallyId: number;
+  setNumber: number;
+  team: TeamSide;
+  playerNumber: number | null;
+  skillSubtype: string | null;
+  startZone: number | null;
+  startSubzone: string | null;
+  endZone: number | null;
+  endSubzone: string | null;
+  effect: Effect | null;
+};
+
+export type RxAttackPair = {
+  setNumber: number;
+  team: TeamSide;
+  rxEffect: Effect | null;
+  atkStartZone: number | null;
+  atkEndZone: number | null;
+  atkEffect: Effect | null;
+};
+
 export type SkillStats = {
   total: number;
   excellent: number;
@@ -79,7 +101,60 @@ function buildTeamReport(actions: Action[], team: TeamSide): TeamReport {
   return report;
 }
 
-function buildSetScores(rallies: Rally[]): SetScore[] {
+export function buildRallySetMap(rallies: Rally[]): Map<number, number> {
+  return new Map(rallies.map((r) => [r.id, r.set_number]));
+}
+
+export function buildServeArrows(actions: Action[], rallySetMap: Map<number, number>): ServeArrow[] {
+  return actions
+    .filter((a) => a.skill === 'S')
+    .map((a) => ({
+      rallyId: a.rally_id,
+      setNumber: rallySetMap.get(a.rally_id) ?? 0,
+      team: a.team,
+      playerNumber: a.player_number,
+      skillSubtype: a.skill_subtype,
+      startZone: a.start_zone,
+      startSubzone: a.start_subzone,
+      endZone: a.end_zone,
+      endSubzone: a.end_subzone,
+      effect: a.effect,
+    }));
+}
+
+export function buildReceptionAttackPairs(actions: Action[], rallies: Rally[]): RxAttackPair[] {
+  const rallySetMap = buildRallySetMap(rallies);
+  const byRally = new Map<number, Action[]>();
+  for (const a of actions) {
+    if (!byRally.has(a.rally_id)) byRally.set(a.rally_id, []);
+    byRally.get(a.rally_id)!.push(a);
+  }
+  const pairs: RxAttackPair[] = [];
+  for (const [rallyId, acts] of byRally) {
+    const sorted = [...acts].sort((a, b) => a.action_order - b.action_order);
+    const setNumber = rallySetMap.get(rallyId) ?? 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const rx = sorted[i];
+      if (rx.skill !== 'R') continue;
+      for (let j = i + 1; j < sorted.length; j++) {
+        if (sorted[j].skill === 'A' && sorted[j].team === rx.team) {
+          pairs.push({
+            setNumber,
+            team: rx.team,
+            rxEffect: rx.effect,
+            atkStartZone: sorted[j].start_zone,
+            atkEndZone: sorted[j].end_zone,
+            atkEffect: sorted[j].effect,
+          });
+          break;
+        }
+      }
+    }
+  }
+  return pairs;
+}
+
+export function buildSetScores(rallies: Rally[]): SetScore[] {
   const latestBySet = new Map<number, Rally>();
   for (const r of rallies) {
     const ex = latestBySet.get(r.set_number);
@@ -100,6 +175,10 @@ export function buildMatchReport(actions: Action[], rallies: Rally[]): MatchRepo
     away: buildTeamReport(actions, 'away'),
     setScores: buildSetScores(rallies),
   };
+}
+
+export function getSetNumbers(rallies: Rally[]): number[] {
+  return [...new Set(rallies.map((r) => r.set_number))].sort((a, b) => a - b);
 }
 
 export function buildServeFlows(actions: Action[]): ServeZoneFlow[] {

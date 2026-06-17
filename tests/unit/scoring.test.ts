@@ -10,6 +10,8 @@ function makeAction(overrides: Partial<ParsedAction>): ParsedAction {
     skillSubtype: null,
     startZone: null,
     endZone: null,
+    startSubzone: null,
+    endSubzone: null,
     effect: null,
     rawToken: '',
     ...overrides,
