@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "preview": "electron-vite preview",
-    "seed": "tsx scripts/seed-test-data.ts",
+    "preseed": "npm run rebuild:node",
+    "seed": "node scripts/seed-complete.js",
+    "postseed": "npm run rebuild:electron",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3"
   },
