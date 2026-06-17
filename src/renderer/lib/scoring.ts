@@ -75,3 +75,14 @@ export function computeRallyOutcome(parsed: ParsedRally, state: ScoringState): R
 
   return outcome;
 }
+
+export function setTargetScore(setNumber: number): number {
+  return setNumber === 5 ? 15 : 25;
+}
+
+export function isSetComplete(homeScore: number, awayScore: number, setNumber: number): boolean {
+  const target = setTargetScore(setNumber);
+  const hi = Math.max(homeScore, awayScore);
+  const lo = Math.min(homeScore, awayScore);
+  return hi >= target && hi - lo >= 2;
+}
