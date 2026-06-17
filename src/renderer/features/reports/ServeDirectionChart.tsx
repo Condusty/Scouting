@@ -8,6 +8,19 @@ const ZONE_POS: Record<ZoneId, [number, number]> = {
   5: [87, 235], 6: [220, 235], 1: [353, 235],
 };
 
+// Subzone offsets within a cell (half-width ~66, half-height ~57)
+const SUBZONE_OFFSET: Record<string, [number, number]> = {
+  a: [-33, -28], b: [33, -28],
+  c: [-33,  28], d: [33,  28],
+};
+
+function zoneCenter(zone: ZoneId, subzone: string | null): [number, number] {
+  const [x, y] = ZONE_POS[zone];
+  if (!subzone || !SUBZONE_OFFSET[subzone]) return [x, y];
+  const [dx, dy] = SUBZONE_OFFSET[subzone];
+  return [x + dx, y + dy];
+}
+
 const ZONE_CELLS: { id: ZoneId; x: number; y: number; w: number; h: number }[] = [
   { id: 4, x: 20,  y: 60,  w: 133, h: 115 },
   { id: 3, x: 153, y: 60,  w: 134, h: 115 },
@@ -56,7 +69,7 @@ export function ServeDirectionChart({ flows }: { flows: ServeZoneFlow[] }) {
         const endId = flow.endZone as ZoneId;
         if (!ZONE_POS[endId]) return null;
         const [x1, y1] = ORIGIN;
-        const [x2, y2] = ZONE_POS[endId];
+        const [x2, y2] = zoneCenter(endId, flow.endSubzone);
         const sw = 1.5 + (flow.count / maxCount) * 4.5;
         const c = arrowColor(flow);
         const colors = { red: '#ef4444', green: '#22c55e', gray: '#71717a' };

@@ -6,8 +6,8 @@ function makeAction(overrides: Partial<Action> = {}): Action {
   return {
     id: 1, rally_id: 1, action_order: 0, team: 'home',
     player_number: 7, player_id: null, skill: 'S', skill_subtype: null,
-    start_zone: null, end_zone: null, effect: null,
-    linked_id: null, video_time_ms: null, raw_token: null,
+    start_zone: null, end_zone: null, start_subzone: null, end_subzone: null,
+    effect: null, linked_id: null, video_time_ms: null, raw_token: null,
     ...overrides,
   };
 }
@@ -97,6 +97,18 @@ describe('buildServeFlows', () => {
     expect(flows.find(f => f.endZone === 5)?.count).toBe(2);
     expect(flows.find(f => f.endZone === 5)?.excellentCount).toBe(1);
     expect(flows.find(f => f.endZone === 6)?.errorCount).toBe(1);
+  });
+
+  it('groups by sub-zone — 5b and 5c are separate flows', () => {
+    const actions = [
+      makeAction({ skill: 'S', end_zone: 5, end_subzone: 'b', effect: '#' }),
+      makeAction({ skill: 'S', end_zone: 5, end_subzone: 'c', effect: '=' }),
+      makeAction({ skill: 'S', end_zone: 5, end_subzone: 'b', effect: '+' }),
+    ];
+    const flows = buildServeFlows(actions);
+    expect(flows).toHaveLength(2);
+    expect(flows.find(f => f.endSubzone === 'b')?.count).toBe(2);
+    expect(flows.find(f => f.endSubzone === 'c')?.count).toBe(1);
   });
 
   it('null zones do not crash', () => {

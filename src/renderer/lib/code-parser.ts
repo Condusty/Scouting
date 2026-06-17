@@ -118,17 +118,22 @@ function parseAction(rest: string, team: TeamSide, rawToken: string): ParsedActi
     i++;
   }
 
-  // ZONES := DIGIT DIGIT?
+  // ZONES := ZONE_SPEC ZONE_SPEC?
+  // ZONE_SPEC := DIGIT ('a'|'b'|'c'|'d')?
   let startZone: number | null = null;
   let endZone: number | null = null;
-  const zonesMatch = /^\d{1,2}/.exec(rest.slice(i));
-  if (zonesMatch) {
-    const digits = zonesMatch[0];
-    startZone = Number(digits[0]);
-    if (digits.length === 2) {
-      endZone = Number(digits[1]);
+  let startSubzone: string | null = null;
+  let endSubzone: string | null = null;
+
+  if (/^\d/.test(rest[i] ?? '')) {
+    startZone = Number(rest[i]);
+    i++;
+    if (/^[abcd]$/.test(rest[i] ?? '')) { startSubzone = rest[i]; i++; }
+    if (/^\d/.test(rest[i] ?? '')) {
+      endZone = Number(rest[i]);
+      i++;
+      if (/^[abcd]$/.test(rest[i] ?? '')) { endSubzone = rest[i]; i++; }
     }
-    i += digits.length;
   }
 
   // Any leftover characters mean this wasn't a valid action token.
@@ -141,6 +146,8 @@ function parseAction(rest: string, team: TeamSide, rawToken: string): ParsedActi
     skillSubtype,
     startZone,
     endZone,
+    startSubzone,
+    endSubzone,
     effect,
     rawToken,
   };

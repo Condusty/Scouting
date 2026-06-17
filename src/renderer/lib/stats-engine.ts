@@ -37,7 +37,9 @@ export type MatchReportData = {
 
 export type ServeZoneFlow = {
   startZone: number | null;
+  startSubzone: string | null;
   endZone: number | null;
+  endSubzone: string | null;
   count: number;
   excellentCount: number;
   errorCount: number;
@@ -103,10 +105,14 @@ export function buildMatchReport(actions: Action[], rallies: Rally[]): MatchRepo
 export function buildServeFlows(actions: Action[]): ServeZoneFlow[] {
   const map = new Map<string, ServeZoneFlow>();
   for (const s of actions.filter((a) => a.skill === 'S')) {
-    const key = `${s.start_zone ?? 'null'}-${s.end_zone ?? 'null'}`;
+    const key = `${s.start_zone ?? 'null'}${s.start_subzone ?? ''}-${s.end_zone ?? 'null'}${s.end_subzone ?? ''}`;
     let flow = map.get(key);
     if (!flow) {
-      flow = { startZone: s.start_zone, endZone: s.end_zone, count: 0, excellentCount: 0, errorCount: 0 };
+      flow = {
+        startZone: s.start_zone, startSubzone: s.start_subzone ?? null,
+        endZone: s.end_zone, endSubzone: s.end_subzone ?? null,
+        count: 0, excellentCount: 0, errorCount: 0,
+      };
       map.set(key, flow);
     }
     flow.count++;

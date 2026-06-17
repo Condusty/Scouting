@@ -13,6 +13,8 @@ describe('parseCode', () => {
       skillSubtype: 'Q',
       startZone: 1,
       endZone: 5,
+      startSubzone: null,
+      endSubzone: null,
       effect: '#',
       rawToken: 'a10SQ#15',
     });
@@ -31,6 +33,8 @@ describe('parseCode', () => {
       skillSubtype: 'H',
       startZone: null,
       endZone: null,
+      startSubzone: null,
+      endSubzone: null,
       effect: null,
       rawToken: '14SH',
     });
@@ -46,6 +50,8 @@ describe('parseCode', () => {
       skillSubtype: null,
       startZone: 1,
       endZone: null,
+      startSubzone: null,
+      endSubzone: null,
       effect: '#',
       rawToken: '7R#1',
     });
@@ -61,6 +67,8 @@ describe('parseCode', () => {
       skillSubtype: null,
       startZone: null,
       endZone: null,
+      startSubzone: null,
+      endSubzone: null,
       effect: null,
       rawToken: '14S',
     });
@@ -76,6 +84,8 @@ describe('parseCode', () => {
       skillSubtype: null,
       startZone: 5,
       endZone: null,
+      startSubzone: null,
+      endSubzone: null,
       effect: '#',
       rawToken: '14A#5',
     });
@@ -86,6 +96,8 @@ describe('parseCode', () => {
       skillSubtype: null,
       startZone: null,
       endZone: null,
+      startSubzone: null,
+      endSubzone: null,
       effect: '=',
       rawToken: 'a3B=',
     });
@@ -155,5 +167,43 @@ describe('parseCode', () => {
     const result = parseCode('14A#5.???.aT');
     expect(result.actions).toHaveLength(1);
     expect(result.timeouts).toEqual([{ team: 'away' }]);
+  });
+
+  it('parses sub-zone on start zone', () => {
+    const a = parseCode('7R#1a').actions[0];
+    expect(a.startZone).toBe(1);
+    expect(a.startSubzone).toBe('a');
+    expect(a.endZone).toBeNull();
+    expect(a.endSubzone).toBeNull();
+  });
+
+  it('parses sub-zone on end zone only', () => {
+    const a = parseCode('14A#5d').actions[0];
+    expect(a.startZone).toBe(5);
+    expect(a.startSubzone).toBe('d');
+    expect(a.endZone).toBeNull();
+    expect(a.endSubzone).toBeNull();
+  });
+
+  it('parses sub-zone on two-zone code', () => {
+    const a = parseCode('a10SQ#15b').actions[0];
+    expect(a.startZone).toBe(1);
+    expect(a.startSubzone).toBeNull();
+    expect(a.endZone).toBe(5);
+    expect(a.endSubzone).toBe('b');
+  });
+
+  it('parses sub-zones on both zones', () => {
+    const a = parseCode('10S#1a5c').actions[0];
+    expect(a.startZone).toBe(1);
+    expect(a.startSubzone).toBe('a');
+    expect(a.endZone).toBe(5);
+    expect(a.endSubzone).toBe('c');
+  });
+
+  it('zone without sub-zone still works', () => {
+    const a = parseCode('7R#9').actions[0];
+    expect(a.startZone).toBe(9);
+    expect(a.startSubzone).toBeNull();
   });
 });

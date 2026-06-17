@@ -80,6 +80,8 @@ export interface Action {
   skill_subtype: string | null;
   start_zone: number | null;
   end_zone: number | null;
+  start_subzone: string | null;
+  end_subzone: string | null;
   effect: Effect | null;
   linked_id: number | null;
   video_time_ms: number | null;
@@ -116,6 +118,8 @@ export interface ParsedAction {
   skillSubtype: string | null;
   startZone: number | null;
   endZone: number | null;
+  startSubzone: string | null;
+  endSubzone: string | null;
   effect: Effect | null;
   rawToken: string;
 }

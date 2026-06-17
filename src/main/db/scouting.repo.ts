@@ -28,9 +28,9 @@ function getRally(db: Database.Database, id: number): Rally {
 function insertActions(db: Database.Database, rallyId: number, matchId: number, actions: ParsedAction[]): void {
   const insertAction = db.prepare(
     `INSERT INTO actions
-      (rally_id, action_order, team, player_number, player_id, skill, skill_subtype, start_zone, end_zone, effect, linked_id, raw_token)
+      (rally_id, action_order, team, player_number, player_id, skill, skill_subtype, start_zone, end_zone, start_subzone, end_subzone, effect, linked_id, raw_token)
      VALUES
-      (@rally_id, @action_order, @team, @player_number, @player_id, @skill, @skill_subtype, @start_zone, @end_zone, @effect, @linked_id, @raw_token)`,
+      (@rally_id, @action_order, @team, @player_number, @player_id, @skill, @skill_subtype, @start_zone, @end_zone, @start_subzone, @end_subzone, @effect, @linked_id, @raw_token)`,
   );
 
   const updateLinkedId = db.prepare('UPDATE actions SET linked_id = ? WHERE id = ?');
@@ -61,6 +61,8 @@ function insertActions(db: Database.Database, rallyId: number, matchId: number, 
       skill_subtype: action.skillSubtype,
       start_zone: action.startZone,
       end_zone: action.endZone,
+      start_subzone: action.startSubzone ?? null,
+      end_subzone: action.endSubzone ?? null,
       effect: action.effect,
       linked_id: null,
       raw_token: action.rawToken,
