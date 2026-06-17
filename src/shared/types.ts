@@ -205,6 +205,22 @@ export interface LineupSelection {
   servingTeam: TeamSide;
 }
 
+export interface SetRecord {
+  match_id: number;
+  set_number: number;
+  home_lineup: string | null;
+  away_lineup: string | null;
+  serving_team: TeamSide | null;
+}
+
+export interface UpsertSetDTO {
+  matchId: number;
+  setNumber: number;
+  homeLineup: number[];
+  awayLineup: number[];
+  servingTeam: TeamSide;
+}
+
 export interface ScoringState {
   homeScore: number;
   awayScore: number;
