@@ -12,6 +12,7 @@ export interface LineupDialogProps {
   awayRoster: TeamPlayer[];
   previousHomeLineup?: number[];
   previousAwayLineup?: number[];
+  previousServingTeam?: TeamSide;
   onConfirm: (selection: LineupSelection) => void;
   onCancel: () => void;
 }
@@ -60,6 +61,10 @@ function LineupColumn({
   onRotateForward: () => void;
   onRotateBackward: () => void;
 }) {
+  const handleBenchClick = (shirt: number) => {
+    const emptyPos = lineup.findIndex((v) => v === null);
+    if (emptyPos !== -1) onPlace(emptyPos + 1, shirt);
+  };
   const placed = new Set(lineup.filter((v): v is number => v !== null));
   const bench = roster.filter((p) => !placed.has(p.shirt_number));
 
@@ -79,8 +84,9 @@ function LineupColumn({
             <div
               key={p.id}
               draggable
+              onClick={() => handleBenchClick(p.shirt_number)}
               onDragStart={(e) => e.dataTransfer.setData('text/plain', String(p.shirt_number))}
-              className="flex cursor-grab items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 active:cursor-grabbing"
+              className="flex cursor-pointer items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 hover:border-sky-500/60 hover:bg-sky-500/10 active:opacity-70"
             >
               <span className="font-semibold">#{p.shirt_number}</span> {p.last_name}
               {p.is_setter && <SetterBadge />}
@@ -138,10 +144,12 @@ function LineupColumn({
   );
 }
 
-export function LineupDialog({ open, homeRoster, awayRoster, previousHomeLineup, previousAwayLineup, onConfirm, onCancel }: LineupDialogProps) {
+export function LineupDialog({ open, homeRoster, awayRoster, previousHomeLineup, previousAwayLineup, previousServingTeam, onConfirm, onCancel }: LineupDialogProps) {
   const [homeLineup, setHomeLineup] = React.useState<(number | null)[]>(Array(6).fill(null));
   const [awayLineup, setAwayLineup] = React.useState<(number | null)[]>(Array(6).fill(null));
-  const [servingTeam, setServingTeam] = React.useState<TeamSide | null>(null);
+  const [servingTeam, setServingTeam] = React.useState<TeamSide | null>(
+    previousServingTeam != null ? (previousServingTeam === 'home' ? 'away' : 'home') : null,
+  );
 
   const hasPrevious = previousHomeLineup !== undefined && previousAwayLineup !== undefined;
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { TeamSide } from '@shared/types';
 import { useScoutingStore } from '@renderer/store/scouting.store';
 import { useUIStore } from '@renderer/store/ui.store';
 import { LineupDialog } from '@renderer/features/scouting/LineupDialog';
@@ -22,7 +23,8 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
   const nextSet = useScoutingStore((s) => s.nextSet);
   const { activeTabId, closeTab } = useUIStore();
   const [helpOpen, setHelpOpen] = useState(false);
-  const [prevLineup, setPrevLineup] = useState<{ home: number[]; away: number[] } | null>(null);
+  const initialState = useScoutingStore((s) => s.initialState);
+  const [prevLineup, setPrevLineup] = useState<{ home: number[]; away: number[]; servingTeam: TeamSide } | null>(null);
 
   useEffect(() => {
     void useScoutingStore.getState().startSession(matchId);
@@ -47,6 +49,7 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
           awayRoster={session.awayRoster}
           previousHomeLineup={prevLineup?.home}
           previousAwayLineup={prevLineup?.away}
+          previousServingTeam={prevLineup?.servingTeam}
           onConfirm={setLineup}
           onCancel={() => activeTabId && closeTab(activeTabId)}
         />
@@ -72,7 +75,11 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
                 gewinnt {session.homeScore}:{session.awayScore}
               </span>
               <Button onClick={() => {
-                setPrevLineup({ home: session.homeLineup, away: session.awayLineup });
+                setPrevLineup({
+                  home: session.homeLineup,
+                  away: session.awayLineup,
+                  servingTeam: initialState?.servingTeam ?? session.servingTeam,
+                });
                 void nextSet();
               }}>Nächster Satz</Button>
             </div>
