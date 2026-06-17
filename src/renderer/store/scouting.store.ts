@@ -144,7 +144,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
             homeLineup: [],
             awayLineup: [],
           },
-          rallies: [],
+          rallies,
           needsLineup: true,
           initialState: null,
           setCompleted: false,
