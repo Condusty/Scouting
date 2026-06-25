@@ -23,6 +23,7 @@ function baseMatch(home: number, away: number): CreateMatchDTO {
     video_offset_ms: 0,
     comment: null,
     dvw_source_file: null,
+    scouting_mode: 'code',
   };
 }
 

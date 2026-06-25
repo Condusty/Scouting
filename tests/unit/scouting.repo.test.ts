@@ -40,6 +40,7 @@ function baseMatch(home: number, away: number): CreateMatchDTO {
     video_offset_ms: 0,
     comment: null,
     dvw_source_file: null,
+    scouting_mode: 'code',
   };
 }
 
@@ -244,6 +245,7 @@ describe('scouting.repo', () => {
       team: 'home',
       playerOutNum: 7,
       playerInNum: 8,
+      isLibero: false,
     };
     createSubstitution(db, dto);
     const count = db.prepare('SELECT COUNT(*) AS c FROM substitutions').get() as { c: number };
@@ -324,6 +326,7 @@ describe('scouting.repo', () => {
         team: 'home',
         playerOutNum: 7,
         playerInNum: 8,
+        isLibero: false,
       });
       createTimeout(db, {
         matchId,
@@ -354,6 +357,7 @@ describe('scouting.repo', () => {
             team: 'away',
             playerOutNum: 3,
             playerInNum: 4,
+            isLibero: false,
           },
         ],
         [],

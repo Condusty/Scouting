@@ -115,6 +115,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
             awayRoster,
             homeLineup,
             awayLineup,
+            scoutingMode: match.scouting_mode,
           },
           rallies,
           needsLineup: false,
@@ -143,6 +144,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
             awayRoster,
             homeLineup: [],
             awayLineup: [],
+            scoutingMode: match.scouting_mode,
           },
           rallies,
           needsLineup: true,
@@ -240,6 +242,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           team: sub.team,
           playerOutNum: sub.out,
           playerInNum: sub.in,
+          isLibero: sub.isLibero,
         });
       }
 
@@ -336,6 +339,7 @@ export const useScoutingStore = create<ScoutingStore>((set, get) => ({
           team: sub.team,
           playerOutNum: sub.out,
           playerInNum: sub.in,
+          isLibero: sub.isLibero,
         })),
         parsed.timeouts.map((timeout) => ({
           matchId: session.matchId,

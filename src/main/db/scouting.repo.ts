@@ -231,8 +231,8 @@ export function deleteRally(db: Database.Database, id: number): void {
 export function createSubstitution(db: Database.Database, dto: CreateSubstitutionDTO): void {
   try {
     db.prepare(
-      `INSERT INTO substitutions (match_id, set_number, after_rally, team, player_out_num, player_in_num)
-       VALUES (@match_id, @set_number, @after_rally, @team, @player_out_num, @player_in_num)`,
+      `INSERT INTO substitutions (match_id, set_number, after_rally, team, player_out_num, player_in_num, is_libero)
+       VALUES (@match_id, @set_number, @after_rally, @team, @player_out_num, @player_in_num, @is_libero)`,
     ).run({
       match_id: dto.matchId,
       set_number: dto.setNumber,
@@ -240,6 +240,7 @@ export function createSubstitution(db: Database.Database, dto: CreateSubstitutio
       team: dto.team,
       player_out_num: dto.playerOutNum,
       player_in_num: dto.playerInNum,
+      is_libero: dto.isLibero ? 1 : 0,
     });
   } catch (e) {
     mapDbError(e, { entity: 'Wechsel' });
