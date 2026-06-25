@@ -51,6 +51,7 @@ export interface Match {
   video_offset_ms: number;
   comment: string | null;
   dvw_source_file: string | null;
+  scouting_mode: 'code' | 'click';
   created_at: string;
 }
 
@@ -128,6 +129,7 @@ export interface ParsedSub {
   team: TeamSide;
   out: number;
   in: number;
+  isLibero: boolean;
 }
 
 export interface CreateRallyDTO {
@@ -160,6 +162,7 @@ export interface CreateSubstitutionDTO {
   team: TeamSide;
   playerOutNum: number;
   playerInNum: number;
+  isLibero: boolean;
 }
 
 export interface CreateTimeoutDTO {
@@ -201,6 +204,7 @@ export interface ScoutingSession {
   /** Shirt numbers for positions 1-6 at rotation 1, set by the LineupDialog. */
   homeLineup: number[];
   awayLineup: number[];
+  scoutingMode: 'code' | 'click';
 }
 
 export interface LineupSelection {
