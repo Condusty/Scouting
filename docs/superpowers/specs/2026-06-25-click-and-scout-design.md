@@ -20,20 +20,24 @@ Add a second scouting input method, modeled closely on DataProject's **Click&Sco
 
 ## 2. Pipeline reuse architecture
 
-The single most important architectural decision: **the click UI never talks to the database or scoring logic directly.** It only builds the same `ParsedAction[]` / `ParsedRally` shape that `code-parser.ts` already produces from text, then hands that object to the *existing* `computeRallyOutcome()` → rally/action insert → cascade-recalc pipeline used by code scouting. Concretely:
+The single most important architectural decision: **the click UI never talks to the database, scoring, or validation logic directly — it drives the existing `scouting.store.ts` text pipeline.**
 
-- New pure-logic module `renderer/lib/click-rally-builder.ts`. This is a state machine, framework-free TS (no React), unit-tested like `code-parser.ts` — TDD-first, per project convention, since it is the highest-risk new logic.
-- Input: a sequence of discrete click events (`{ kind: 'zone-click' | 'player-click' | 'effect-click' | 'subtype-click' | 'sub' | 'timeout', ...payload }`).
-- Output: incrementally-built `ParsedAction` objects (team, player_number, skill, skill_subtype, start_zone, start_subzone, end_zone, end_subzone, effect), exactly mirroring the fields `code-parser.ts` fills in from text tokens.
-- Effect inference reuses the same compound-codification relationship already implicit in `scoring.ts`/the parser's optional `EFFECT` grammar token: most grades are optional and inferred once the *next* action arrives (serve `-` because reception was `#`, etc.); only point-ending grades (`#`, `=`) must be explicit because no follow-up action exists to infer them from. No new effect tables — same rules, just triggered by clicks instead of typed characters.
-- Once a rally completes (point scored), the builder emits a complete `ParsedRally`, which flows into the same `computeRallyOutcome()` / `insertActions()` code path code-scouting's `submitCode()` already uses in `scoring.store.ts`. Auto-rotation, auto-serving-team, and score tracking are therefore unchanged — zero new logic.
+Verified in the current code: `scouting.store.ts`'s `setInput(raw)` runs `parseCode(raw)` into `pendingRally`/runs `validateRally`, and `submitCode()` reads that `pendingRally` and pushes it through `computeRallyOutcome()` → `scoutingApi.createRally()` (→ `insertActions()` in `scouting.repo.ts`, cascade-recalc on edit). None of that cares how the string was produced.
+
+So the click UI's only job is to **assemble the same raw code string** a scout would have typed (e.g. `14SQ-15.a1RH+.a1AH#`), token by token, as clicks come in, then call the *unmodified* `setInput(codeString)` followed by `submitCode()` once the rally ends. This means:
+
+- New pure-logic module `renderer/lib/click-rally-builder.ts` — a state machine, framework-free TS (no React), unit-tested like `code-parser.ts` (TDD-first, per project convention, since it's the highest-risk new logic).
+- Input: discrete click events (zone click w/ optional subzone, player click, effect click, subtype click).
+- Output: the same token grammar `code-parser.ts` already parses (`TEAM? PLAYER SKILL SUBTYPE? EFFECT? ZONE[SUBZONE][ZONE[SUBZONE]]`), joined with `.`. The builder never constructs `ParsedAction` objects itself — it emits text, and `parseCode()` (already exhaustively tested) is the single source of truth for turning that text into actions.
+- **Correction from an earlier draft:** there is no "compound codification" auto-inference in this codebase today — `scoring.ts`'s `determinePointTeam()` only inspects the *last* action's effect (`#` on S/A/B ends the rally for that team, `=` on any skill ends it for the opponent); all other grades are optional and stay `null` if skipped, exactly like typing a code with no effect character. The click UI's "optional grade" steps therefore just mean: clicking a grade button appends that effect character to the current token; skipping it leaves the token without one. Only `#`/`=` need to be explicit when they apply, because there is no following token to fall back on.
+- Because submission goes through the unchanged `setInput`/`submitCode`, click-entered rallies get `validateRally()`, the `RallyLog` display, and the existing "modify code" edit flow for free — they are indistinguishable from code-scouted rallies once stored.
 - `MatchReportView`, `stats-engine.ts`, `buildMatchReport`, `PlayerStats`, etc. require **no changes**: they read `actions`/`rallies` rows, agnostic to how those rows were produced.
 
 ## 3. New UI components
 
 Under `renderer/features/scouting/click/`:
 
-- `ClickScoutWindow.tsx` — the click-mode equivalent of `CommandLine` + `RallyLog`, mounted instead of them when `scoutingMode === 'click'`. Hosts a persistent header bar showing the current step's prompt (e.g. "Klick Annahmespieler", "Klick Aufschlag-Startpunkt") driven by `click-rally-builder`'s current state.
+- `ClickScoutWindow.tsx` — the click-mode equivalent of `CommandLine` (RallyLog stays mounted as-is), shown instead of it when `scoutingMode === 'click'`. Hosts a persistent header bar showing the current step's prompt (e.g. "Klick Annahmespieler", "Klick Aufschlag-Startpunkt") driven by `click-rally-builder`'s current state. On rally completion, calls the unmodified `useScoutingStore.getState().setInput(codeString)` followed by `submitCode()` — no new store methods.
 - `CourtClickArea.tsx` — landscape court SVG/div-grid rendering zones 1–9 with a–d subzones (reuses the existing zone/subzone geometry from `CourtZoneDiagram.tsx`), plus:
   - a serve-start strip behind the serving team's baseline (active only during `SERVE_START`)
   - an out-of-bounds margin around the playing field; clicks there auto-resolve to an error/ace effect instead of a zone
