@@ -72,10 +72,12 @@ function parseEntry(token: string, rally: ParsedRally): void {
 }
 
 function parseSub(rest: string, team: TeamSide): ParsedSub | null {
-  // rest := PLAYER ':' PLAYER
-  const match = /^(\d{1,2}):(\d{1,2})$/.exec(rest);
+  // rest := 'L'? PLAYER ':' PLAYER  ('L' marks a libero swap)
+  const isLibero = rest.startsWith('L');
+  const body = isLibero ? rest.slice(1) : rest;
+  const match = /^(\d{1,2}):(\d{1,2})$/.exec(body);
   if (!match) return null;
-  return { team, out: Number(match[1]), in: Number(match[2]) };
+  return { team, out: Number(match[1]), in: Number(match[2]), isLibero };
 }
 
 function parseAction(rest: string, team: TeamSide, rawToken: string): ParsedAction | null {

@@ -106,14 +106,24 @@ describe('parseCode', () => {
 
   it('parses a home substitution', () => {
     const result = parseCode('C11:24');
-    expect(result.subs).toEqual([{ team: 'home', out: 11, in: 24 }]);
+    expect(result.subs).toEqual([{ team: 'home', out: 11, in: 24, isLibero: false }]);
     expect(result.actions).toEqual([]);
   });
 
   it('parses an away substitution', () => {
     const result = parseCode('aC5:8');
-    expect(result.subs).toEqual([{ team: 'away', out: 5, in: 8 }]);
+    expect(result.subs).toEqual([{ team: 'away', out: 5, in: 8, isLibero: false }]);
     expect(result.actions).toEqual([]);
+  });
+
+  it('parses a home libero substitution', () => {
+    const result = parseCode('CL11:24');
+    expect(result.subs).toEqual([{ team: 'home', out: 11, in: 24, isLibero: true }]);
+  });
+
+  it('parses an away libero substitution', () => {
+    const result = parseCode('aCL5:8');
+    expect(result.subs).toEqual([{ team: 'away', out: 5, in: 8, isLibero: true }]);
   });
 
   it('parses a home timeout', () => {
