@@ -38,7 +38,7 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {error !== null && (
         <div className="bg-red-500/10 px-3 py-1.5 text-xs text-red-400">{error}</div>
       )}
