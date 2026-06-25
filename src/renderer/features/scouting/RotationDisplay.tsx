@@ -16,7 +16,7 @@ const POSITIONS = [4, 3, 2, 5, 6, 1];
  * `lineup` (rotation 1) and the team's `currentRotation`. Each rotation step
  * shifts every player by one position (P2->P1, ..., P1->P6).
  */
-function shirtAtPosition(lineup: number[], currentRotation: number, position: number): number | null {
+export function shirtAtPosition(lineup: number[], currentRotation: number, position: number): number | null {
   if (lineup.length === 0) return null;
   const offset = ((currentRotation - 1) % 6 + 6) % 6;
   return lineup[(position - 1 + offset) % 6];
