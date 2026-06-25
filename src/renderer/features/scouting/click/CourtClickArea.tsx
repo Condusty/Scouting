@@ -24,6 +24,7 @@ const SUBZONES: Subzone[] = ['a', 'b', 'c', 'd'];
 
 // rows = left/center/right side of the court, columns = back/mid/front (home) or front/mid/back (away)
 // — zone numbers are relative to the acting team's own grid, matching DataVolley convention.
+// Column index 2 (home) / 0 (away) is the net-side "front row" column — the attack line is drawn there.
 const HOME_GRID: number[][] = [
   [5, 7, 4],
   [6, 8, 3],
@@ -34,6 +35,8 @@ const AWAY_GRID: number[][] = [
   [3, 8, 6],
   [4, 7, 5],
 ];
+const HOME_ATTACK_LINE_AFTER_COL = 1; // line sits between column 1 (mid) and column 2 (front/net)
+const AWAY_ATTACK_LINE_AFTER_COL = 0; // line sits between column 0 (front/net) and column 1 (mid)
 
 const POSITION_ZONES = new Set([1, 2, 3, 4, 5, 6]);
 
@@ -42,6 +45,7 @@ function ZoneCell({
   team,
   shirt,
   clickable,
+  attackLineAfter,
   onZoneClick,
   onPlayerClick,
 }: {
@@ -49,13 +53,14 @@ function ZoneCell({
   team: TeamSide;
   shirt: number | null;
   clickable: boolean;
+  attackLineAfter: boolean;
   onZoneClick: (zone: number, subzone?: Subzone) => void;
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
 }) {
   const showPlayer = shirt !== null && POSITION_ZONES.has(zone);
 
   return (
-    <div className="relative grid grid-cols-2 grid-rows-2 overflow-hidden rounded border border-zinc-700 bg-zinc-900/60">
+    <div className={cn('relative grid grid-cols-2 grid-rows-2', attackLineAfter && (team === 'home' ? 'border-r-2 border-dashed border-white/25' : 'border-l-2 border-dashed border-white/25'))}>
       {SUBZONES.map((sz) => (
         <button
           key={sz}
@@ -63,14 +68,11 @@ function ZoneCell({
           disabled={!clickable}
           onClick={() => onZoneClick(zone, sz)}
           className={cn(
-            'flex items-center justify-center text-[10px] text-zinc-600 transition-colors',
-            clickable && 'cursor-pointer hover:bg-sky-500/20 hover:text-sky-300 active:bg-sky-500/30',
+            'transition-colors',
+            clickable && 'cursor-pointer hover:bg-sky-400/15 active:bg-sky-400/25',
             !clickable && 'pointer-events-none',
           )}
-        >
-          {zone}
-          {sz}
-        </button>
+        />
       ))}
       {showPlayer && (
         <button
@@ -79,7 +81,7 @@ function ZoneCell({
             e.stopPropagation();
             onPlayerClick(team, shirt as number);
           }}
-          className="absolute inset-0 m-auto flex h-7 w-7 items-center justify-center self-center justify-self-center rounded-full border border-sky-400 bg-zinc-950/90 text-xs font-bold text-sky-300 shadow transition-colors hover:bg-sky-500/30 active:bg-sky-500/40"
+          className="absolute inset-0 m-auto flex h-10 w-10 items-center justify-center self-center justify-self-center rounded-full border-2 border-sky-400 bg-zinc-950/90 text-sm font-bold text-sky-300 shadow-lg transition-colors hover:bg-sky-500/30 active:bg-sky-500/40"
         >
           {shirt}
         </button>
@@ -91,6 +93,7 @@ function ZoneCell({
 function TeamHalf({
   team,
   grid,
+  attackLineAfterCol,
   lineup,
   rotation,
   zoneClickable,
@@ -101,6 +104,7 @@ function TeamHalf({
 }: {
   team: TeamSide;
   grid: number[][];
+  attackLineAfterCol: number;
   lineup: number[];
   rotation: number;
   zoneClickable: boolean;
@@ -110,8 +114,8 @@ function TeamHalf({
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-1.5">
-      <div className="grid flex-1 grid-cols-3 grid-rows-3 gap-1.5">
+    <div className="flex flex-1 flex-col gap-2">
+      <div className="grid flex-1 grid-cols-3 grid-rows-3 rounded-md border-2 border-white/30 bg-amber-900/10">
         {grid.flatMap((row, rowIndex) =>
           row.map((zone, colIndex) => {
             const position = POSITION_ZONES.has(zone) ? zone : null;
@@ -123,6 +127,7 @@ function TeamHalf({
                 team={team}
                 shirt={shirt}
                 clickable={zoneClickable || (playerClickable && shirt !== null)}
+                attackLineAfter={colIndex === attackLineAfterCol}
                 onZoneClick={onZoneClick}
                 onPlayerClick={onPlayerClick}
               />
@@ -134,7 +139,7 @@ function TeamHalf({
         <button
           type="button"
           onClick={() => onPlayerClick(team, liberoShirt)}
-          className="self-start rounded-full border border-amber-400 bg-zinc-900 px-2 py-1 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
+          className="self-start rounded-full border border-amber-400 bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
         >
           Libero #{liberoShirt}
         </button>
@@ -156,44 +161,39 @@ export function CourtClickArea({
   onPlayerClick,
 }: CourtClickAreaProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <div
-        className={cn(
-          'flex items-stretch gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3',
-          zoneClickActive && 'border-dashed border-red-500/40',
-        )}
-      >
-        <div className="flex flex-1 gap-3">
-          <TeamHalf
-            team="home"
-            grid={HOME_GRID}
-            lineup={homeLineup}
-            rotation={rotationHome}
-            zoneClickable={zoneClickActive}
-            playerClickable={activePlayerSide === 'home'}
-            liberoShirt={liberoShirt?.home}
-            onZoneClick={onZoneClick}
-            onPlayerClick={onPlayerClick}
-          />
-          <div className="w-1 shrink-0 rounded bg-sky-500" />
-          <TeamHalf
-            team="away"
-            grid={AWAY_GRID}
-            lineup={awayLineup}
-            rotation={rotationAway}
-            zoneClickable={zoneClickActive}
-            playerClickable={activePlayerSide === 'away'}
-            liberoShirt={liberoShirt?.away}
-            onZoneClick={onZoneClick}
-            onPlayerClick={onPlayerClick}
-          />
-        </div>
+    <div className="flex h-full w-full flex-col gap-3">
+      <div className="flex flex-1 items-stretch gap-2">
+        <TeamHalf
+          team="home"
+          grid={HOME_GRID}
+          attackLineAfterCol={HOME_ATTACK_LINE_AFTER_COL}
+          lineup={homeLineup}
+          rotation={rotationHome}
+          zoneClickable={zoneClickActive}
+          playerClickable={activePlayerSide === 'home'}
+          liberoShirt={liberoShirt?.home}
+          onZoneClick={onZoneClick}
+          onPlayerClick={onPlayerClick}
+        />
+        <div className="w-1.5 shrink-0 rounded bg-sky-500" />
+        <TeamHalf
+          team="away"
+          grid={AWAY_GRID}
+          attackLineAfterCol={AWAY_ATTACK_LINE_AFTER_COL}
+          lineup={awayLineup}
+          rotation={rotationAway}
+          zoneClickable={zoneClickActive}
+          playerClickable={activePlayerSide === 'away'}
+          liberoShirt={liberoShirt?.away}
+          onZoneClick={onZoneClick}
+          onPlayerClick={onPlayerClick}
+        />
       </div>
       {zoneClickActive && (
         <button
           type="button"
           onClick={onOutOfBounds}
-          className="self-center rounded border border-dashed border-red-500/50 bg-red-500/10 px-4 py-1 text-xs text-red-300 transition-colors hover:bg-red-500/20"
+          className="self-center rounded border border-dashed border-red-500/50 bg-red-500/10 px-4 py-1.5 text-sm text-red-300 transition-colors hover:bg-red-500/20"
         >
           Aus / Ins Netz (=)
         </button>

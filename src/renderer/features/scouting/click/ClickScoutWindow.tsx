@@ -96,9 +96,9 @@ export function ClickScoutWindow() {
     step.kind === 'RECEPTION' || step.kind === 'ATTACK_PLAYER' || step.kind === 'BLOCK_PLAYER' ? step.team : null;
 
   return (
-    <div className="flex flex-col gap-2 border-t border-zinc-700 bg-zinc-900 px-3 py-2">
+    <div className="flex h-full w-full max-w-5xl flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-sky-300">{promptFor(step)}</span>
+        <span className="text-lg font-semibold text-sky-300">{promptFor(step)}</span>
         <div className="flex items-center gap-2">
           <SubPanel session={session} />
           <LiberoToggle session={session} />
@@ -108,19 +108,21 @@ export function ClickScoutWindow() {
         </div>
       </div>
 
-      <CourtClickArea
-        homeLineup={session.homeLineup}
-        awayLineup={session.awayLineup}
-        rotationHome={session.rotationHome}
-        rotationAway={session.rotationAway}
-        zoneClickActive={zoneClickActive}
-        activePlayerSide={activePlayerSide}
-        onZoneClick={(zone, subzone) => apply(builder.clickZone(zone, subzone))}
-        onOutOfBounds={() => apply(builder.clickOutOfBounds())}
-        onPlayerClick={(_team, shirt) => apply(builder.clickPlayer(shirt))}
-      />
+      <div className="min-h-0 flex-1">
+        <CourtClickArea
+          homeLineup={session.homeLineup}
+          awayLineup={session.awayLineup}
+          rotationHome={session.rotationHome}
+          rotationAway={session.rotationAway}
+          zoneClickActive={zoneClickActive}
+          activePlayerSide={activePlayerSide}
+          onZoneClick={(zone, subzone) => apply(builder.clickZone(zone, subzone))}
+          onOutOfBounds={() => apply(builder.clickOutOfBounds())}
+          onPlayerClick={(_team, shirt) => apply(builder.clickPlayer(shirt))}
+        />
+      </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         {step.kind === 'ATTACK_START' && (
           <Button variant="ghost" size="sm" onClick={() => apply(builder.skipZone())}>
             Startposition überspringen

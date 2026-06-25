@@ -85,22 +85,28 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
               }}>Nächster Satz</Button>
             </div>
           )}
-          <div className="flex flex-1 overflow-hidden">
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
-                <RallyLog />
+          {session.scoutingMode === 'click' ? (
+            <div className="flex flex-1 items-center justify-center overflow-hidden p-6">
+              <ClickScoutWindow />
+            </div>
+          ) : (
+            <div className="flex flex-1 overflow-hidden">
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto">
+                  <RallyLog />
+                </div>
+                <CommandLine />
               </div>
-              {session.scoutingMode === 'click' ? <ClickScoutWindow /> : <CommandLine />}
+              <div className="w-64 shrink-0 overflow-y-auto border-l border-zinc-700">
+                <RotationDisplay
+                  homeLineup={session.homeLineup}
+                  awayLineup={session.awayLineup}
+                  rotationHome={session.rotationHome}
+                  rotationAway={session.rotationAway}
+                />
+              </div>
             </div>
-            <div className="w-64 shrink-0 overflow-y-auto border-l border-zinc-700">
-              <RotationDisplay
-                homeLineup={session.homeLineup}
-                awayLineup={session.awayLineup}
-                rotationHome={session.rotationHome}
-                rotationAway={session.rotationAway}
-              />
-            </div>
-          </div>
+          )}
         </>
       )}
     </div>
