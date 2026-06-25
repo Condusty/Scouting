@@ -35,9 +35,9 @@ export function createMatch(db: Database.Database, dto: CreateMatchDTO): MatchDe
     const r = db
       .prepare(
         `INSERT INTO matches
-          (season_id, home_team_id, away_team_id, match_date, venue, video_path, video_offset_ms, comment, dvw_source_file)
+          (season_id, home_team_id, away_team_id, match_date, venue, video_path, video_offset_ms, comment, dvw_source_file, scouting_mode)
          VALUES
-          (@season_id, @home_team_id, @away_team_id, @match_date, @venue, @video_path, @video_offset_ms, @comment, @dvw_source_file)`,
+          (@season_id, @home_team_id, @away_team_id, @match_date, @venue, @video_path, @video_offset_ms, @comment, @dvw_source_file, @scouting_mode)`,
       )
       .run(dto);
     return getMatch(db, Number(r.lastInsertRowid));

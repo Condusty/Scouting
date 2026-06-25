@@ -45,6 +45,7 @@ export function MatchList() {
       video_offset_ms: detail.video_offset_ms,
       comment: detail.comment,
       dvw_source_file: detail.dvw_source_file,
+      scouting_mode: detail.scouting_mode,
     });
     setOpen(true);
   };
@@ -153,7 +154,7 @@ export function MatchList() {
           </>
         }
       >
-        <MatchForm values={form} teams={teams} onChange={setForm} />
+        <MatchForm values={form} teams={teams} onChange={setForm} modeLocked={editId !== null} />
       </Dialog>
       <ConfirmDialog
         open={deleteTarget != null}
