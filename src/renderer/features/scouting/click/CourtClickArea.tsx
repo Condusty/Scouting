@@ -1,19 +1,24 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { TeamSide } from '@shared/types';
 import { cn } from '@renderer/lib/cn';
 import { shirtAtPosition } from '@renderer/features/scouting/RotationDisplay';
 
 export type Subzone = 'a' | 'b' | 'c' | 'd';
+export type ClickRole = 'start' | 'end' | null;
 
 export interface CourtClickAreaProps {
   homeLineup: number[];
   awayLineup: number[];
   rotationHome: number;
   rotationAway: number;
-  /** Whether a zone click (serve landing, attack start/landing, block touch/landing) is expected right now. */
+  /** Whether the main court grid (serve landing, attack start/landing, block landing) is clickable right now. */
   zoneClickActive: boolean;
-  /** Set only during SERVE_START — shows the behind-the-baseline strip for that team. */
+  /** Whether this click establishes a new start point ('start'), completes a pair ('end'), or neither. */
+  clickRole: ClickRole;
+  /** Set only during SERVE_START — that team's behind-the-baseline strip becomes active. */
   serveStartTeam?: TeamSide;
+  /** Set only during BLOCK_TOUCH — that team's along-the-net strip becomes active. */
+  blockAreaTeam?: TeamSide;
   /** Whose on-court players are clickable right now (reception/attack/block player picks). */
   activePlayerSide: TeamSide | null;
   liberoShirt?: { home: number | null; away: number | null };
@@ -36,10 +41,10 @@ const AWAY_GRID: number[][] = [
 ];
 const HOME_ATTACK_LINE_FRAC = 2 / 3; // between mid (col 1) and front/net (col 2)
 const AWAY_ATTACK_LINE_FRAC = 1 / 3; // between front/net (col 0) and mid (col 1)
-const HOME_BACK_ZONES = [5, 6, 1]; // column 0, rows top-to-bottom
-const AWAY_BACK_ZONES = [1, 6, 5]; // column 2, rows top-to-bottom
-
-const POSITION_ZONES = new Set([1, 2, 3, 4, 5, 6]);
+const HOME_BACK_ZONES = [5, 6, 1]; // back column, rows top-to-bottom
+const AWAY_BACK_ZONES = [1, 6, 5];
+const HOME_FRONT_ZONES = [4, 3, 2]; // front (net-side) column, rows top-to-bottom
+const AWAY_FRONT_ZONES = [2, 3, 4];
 
 function quadrant(xFrac: number, yFrac: number): Subzone {
   if (xFrac < 0.5) return yFrac < 0.5 ? 'a' : 'c';
@@ -59,7 +64,6 @@ interface Mark {
   left: number;
   top: number;
 }
-
 let markId = 0;
 
 function Marks({ marks }: { marks: Mark[] }) {
@@ -76,6 +80,19 @@ function Marks({ marks }: { marks: Mark[] }) {
   );
 }
 
+/** Reports both a local (zone-relative) click and a row-relative click (for the shared start→end arrow overlay). */
+function useDualClick(
+  rowRef: React.RefObject<HTMLDivElement | null>,
+  onTrailPoint: (xPct: number, yPct: number) => void,
+) {
+  return (e: React.MouseEvent) => {
+    const rowRect = rowRef.current?.getBoundingClientRect();
+    if (rowRect) {
+      onTrailPoint(((e.clientX - rowRect.left) / rowRect.width) * 100, ((e.clientY - rowRect.top) / rowRect.height) * 100);
+    }
+  };
+}
+
 function TeamHalf({
   team,
   grid,
@@ -85,8 +102,11 @@ function TeamHalf({
   zoneClickable,
   playerClickable,
   liberoShirt,
+  rowRef,
   onZoneClick,
   onPlayerClick,
+  onTrailPoint,
+  onClearTrail,
 }: {
   team: TeamSide;
   grid: number[][];
@@ -96,13 +116,18 @@ function TeamHalf({
   zoneClickable: boolean;
   playerClickable: boolean;
   liberoShirt?: number | null;
+  rowRef: React.RefObject<HTMLDivElement | null>;
   onZoneClick: (zone: number, subzone?: Subzone) => void;
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
+  onTrailPoint: (xPct: number, yPct: number) => void;
+  onClearTrail: () => void;
 }) {
   const [marks, setMarks] = useState<Mark[]>([]);
+  const reportTrail = useDualClick(rowRef, onTrailPoint);
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!zoneClickable) return;
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     const xFrac = (e.clientX - rect.left) / rect.width;
     const yFrac = (e.clientY - rect.top) / rect.height;
@@ -115,15 +140,16 @@ function TeamHalf({
     setMarks((prev) => [...prev, { id, left: xFrac * 100, top: yFrac * 100 }]);
     window.setTimeout(() => setMarks((prev) => prev.filter((m) => m.id !== id)), 600);
 
+    reportTrail(e);
     onZoneClick(zone, subzone);
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-2">
+    <div className="flex h-full flex-col gap-2">
       <div
         onClick={handleClick}
         className={cn(
-          'relative aspect-square w-full rounded-md border-2 border-white/30 bg-amber-900/10 transition-colors',
+          'relative aspect-square flex-1 rounded-md border-2 border-white/30 bg-amber-900/10 transition-colors',
           zoneClickable && 'cursor-crosshair hover:bg-amber-900/20',
         )}
       >
@@ -147,6 +173,7 @@ function TeamHalf({
               disabled={!playerClickable}
               onClick={(e) => {
                 e.stopPropagation();
+                onClearTrail();
                 onPlayerClick(team, shirt);
               }}
               style={{ left: `${left}%`, top: `${top}%` }}
@@ -162,30 +189,46 @@ function TeamHalf({
           );
         })}
       </div>
-      {liberoShirt != null && playerClickable && (
+      <div className={cn('shrink-0', (liberoShirt == null || !playerClickable) && 'invisible')}>
         <button
           type="button"
-          onClick={() => onPlayerClick(team, liberoShirt)}
+          onClick={() => {
+            if (liberoShirt == null) return;
+            onClearTrail();
+            onPlayerClick(team, liberoShirt);
+          }}
           className="self-start rounded-full border border-amber-400 bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
         >
-          Libero #{liberoShirt}
+          Libero #{liberoShirt ?? '–'}
         </button>
-      )}
+      </div>
     </div>
   );
 }
 
-function ServeStartStrip({
-  team,
+function EdgeStrip({
+  active,
+  title,
+  className,
+  zones,
+  rowRef,
   onZoneClick,
+  onTrailPoint,
 }: {
-  team: TeamSide;
+  active: boolean;
+  title: string;
+  className: string;
+  zones: number[];
+  rowRef: React.RefObject<HTMLDivElement | null>;
   onZoneClick: (zone: number, subzone?: Subzone) => void;
+  onTrailPoint: (xPct: number, yPct: number) => void;
 }) {
   const [marks, setMarks] = useState<Mark[]>([]);
-  const zones = team === 'home' ? HOME_BACK_ZONES : AWAY_BACK_ZONES;
+  const reportTrail = useDualClick(rowRef, onTrailPoint);
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!active) return;
+    e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     const xFrac = (e.clientX - rect.left) / rect.width;
     const yFrac = (e.clientY - rect.top) / rect.height;
@@ -197,17 +240,46 @@ function ServeStartStrip({
     setMarks((prev) => [...prev, { id, left: xFrac * 100, top: yFrac * 100 }]);
     window.setTimeout(() => setMarks((prev) => prev.filter((m) => m.id !== id)), 600);
 
+    reportTrail(e);
     onZoneClick(zone, subzone);
   };
 
   return (
     <div
       onClick={handleClick}
-      className="relative aspect-[1/3] w-12 shrink-0 cursor-crosshair rounded-md border-2 border-dashed border-sky-500/50 bg-sky-500/5 transition-colors hover:bg-sky-500/10"
-      title={`Aufschlagstartpunkt (${team === 'home' ? 'Heim' : 'Gast'})`}
+      className={cn(
+        'relative h-full shrink-0 cursor-crosshair rounded-md border-2 border-dashed transition-colors',
+        className,
+        !active && 'invisible',
+      )}
+      title={title}
     >
       <Marks marks={marks} />
     </div>
+  );
+}
+
+function Arrow({ start, end }: { start: { x: number; y: number } | null; end: { x: number; y: number } | null }) {
+  if (start === null || end === null) return null;
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none">
+      <defs>
+        <marker id="court-arrowhead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="rgb(56 189 248)" />
+        </marker>
+      </defs>
+      <line
+        x1={`${start.x}%`}
+        y1={`${start.y}%`}
+        x2={`${end.x}%`}
+        y2={`${end.y}%`}
+        stroke="rgb(56 189 248)"
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        markerEnd="url(#court-arrowhead)"
+      />
+      <circle cx={`${start.x}%`} cy={`${start.y}%`} r={4} fill="rgb(56 189 248)" />
+    </svg>
   );
 }
 
@@ -217,53 +289,115 @@ export function CourtClickArea({
   rotationHome,
   rotationAway,
   zoneClickActive,
+  clickRole,
   serveStartTeam,
+  blockAreaTeam,
   activePlayerSide,
   liberoShirt,
   onZoneClick,
   onOutOfBounds,
   onPlayerClick,
 }: CourtClickAreaProps) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [trail, setTrail] = useState<{ start: { x: number; y: number } | null; end: { x: number; y: number } | null }>({
+    start: null,
+    end: null,
+  });
+
+  const handleTrailPoint = (x: number, y: number) => {
+    if (clickRole === 'start') setTrail({ start: { x, y }, end: null });
+    else if (clickRole === 'end') setTrail((prev) => ({ start: prev.start, end: { x, y } }));
+  };
+  const clearTrail = () => setTrail({ start: null, end: null });
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-      <div className="flex w-full max-w-3xl items-stretch gap-2">
-        {serveStartTeam === 'home' && <ServeStartStrip team="home" onZoneClick={onZoneClick} />}
-        <TeamHalf
-          team="home"
-          grid={HOME_GRID}
-          attackLineFrac={HOME_ATTACK_LINE_FRAC}
-          lineup={homeLineup}
-          rotation={rotationHome}
-          zoneClickable={zoneClickActive}
-          playerClickable={activePlayerSide === 'home'}
-          liberoShirt={liberoShirt?.home}
-          onZoneClick={onZoneClick}
-          onPlayerClick={onPlayerClick}
-        />
-        <div className="w-1.5 shrink-0 rounded bg-sky-500" />
-        <TeamHalf
-          team="away"
-          grid={AWAY_GRID}
-          attackLineFrac={AWAY_ATTACK_LINE_FRAC}
-          lineup={awayLineup}
-          rotation={rotationAway}
-          zoneClickable={zoneClickActive}
-          playerClickable={activePlayerSide === 'away'}
-          liberoShirt={liberoShirt?.away}
-          onZoneClick={onZoneClick}
-          onPlayerClick={onPlayerClick}
-        />
-        {serveStartTeam === 'away' && <ServeStartStrip team="away" onZoneClick={onZoneClick} />}
+      <div
+        className="flex h-full max-h-full items-stretch justify-center gap-4 rounded-lg border border-dashed border-red-500/0 p-6 transition-colors"
+        onClick={() => zoneClickActive && onOutOfBounds()}
+        title={zoneClickActive ? 'Klick außerhalb des Feldes = Aus' : undefined}
+      >
+        <div ref={rowRef} className="relative flex h-full items-stretch gap-2">
+          <EdgeStrip
+            active={serveStartTeam === 'home'}
+            title="Aufschlagstartpunkt (Heim)"
+            className="w-10 border-sky-500/50 bg-sky-500/5 hover:bg-sky-500/10"
+            zones={HOME_BACK_ZONES}
+            rowRef={rowRef}
+            onZoneClick={onZoneClick}
+            onTrailPoint={handleTrailPoint}
+          />
+          <TeamHalf
+            team="home"
+            grid={HOME_GRID}
+            attackLineFrac={HOME_ATTACK_LINE_FRAC}
+            lineup={homeLineup}
+            rotation={rotationHome}
+            zoneClickable={zoneClickActive}
+            playerClickable={activePlayerSide === 'home'}
+            liberoShirt={liberoShirt?.home}
+            rowRef={rowRef}
+            onZoneClick={onZoneClick}
+            onPlayerClick={onPlayerClick}
+            onTrailPoint={handleTrailPoint}
+            onClearTrail={clearTrail}
+          />
+          <EdgeStrip
+            active={blockAreaTeam === 'home'}
+            title="Blockbarren — Berührpunkt am Netz (Heim)"
+            className="w-6 border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
+            zones={HOME_FRONT_ZONES}
+            rowRef={rowRef}
+            onZoneClick={onZoneClick}
+            onTrailPoint={handleTrailPoint}
+          />
+          <div className="w-1.5 shrink-0 self-stretch rounded bg-sky-500" />
+          <EdgeStrip
+            active={blockAreaTeam === 'away'}
+            title="Blockbarren — Berührpunkt am Netz (Gast)"
+            className="w-6 border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
+            zones={AWAY_FRONT_ZONES}
+            rowRef={rowRef}
+            onZoneClick={onZoneClick}
+            onTrailPoint={handleTrailPoint}
+          />
+          <TeamHalf
+            team="away"
+            grid={AWAY_GRID}
+            attackLineFrac={AWAY_ATTACK_LINE_FRAC}
+            lineup={awayLineup}
+            rotation={rotationAway}
+            zoneClickable={zoneClickActive}
+            playerClickable={activePlayerSide === 'away'}
+            liberoShirt={liberoShirt?.away}
+            rowRef={rowRef}
+            onZoneClick={onZoneClick}
+            onPlayerClick={onPlayerClick}
+            onTrailPoint={handleTrailPoint}
+            onClearTrail={clearTrail}
+          />
+          <EdgeStrip
+            active={serveStartTeam === 'away'}
+            title="Aufschlagstartpunkt (Gast)"
+            className="w-10 border-sky-500/50 bg-sky-500/5 hover:bg-sky-500/10"
+            zones={AWAY_BACK_ZONES}
+            rowRef={rowRef}
+            onZoneClick={onZoneClick}
+            onTrailPoint={handleTrailPoint}
+          />
+          <Arrow start={trail.start} end={trail.end} />
+        </div>
       </div>
-      {zoneClickActive && (
-        <button
-          type="button"
-          onClick={onOutOfBounds}
-          className="rounded border border-dashed border-red-500/50 bg-red-500/10 px-4 py-1.5 text-sm text-red-300 transition-colors hover:bg-red-500/20"
-        >
-          Aus / Ins Netz (=)
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onOutOfBounds}
+        className={cn(
+          'rounded border border-dashed border-red-500/50 bg-red-500/10 px-4 py-1.5 text-sm text-red-300 transition-colors hover:bg-red-500/20',
+          !zoneClickActive && 'invisible',
+        )}
+      >
+        Aus / Ins Netz (=)
+      </button>
     </div>
   );
 }

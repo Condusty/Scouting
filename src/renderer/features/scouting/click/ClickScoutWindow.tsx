@@ -14,16 +14,14 @@ import { LiberoToggle } from '@renderer/features/scouting/click/LiberoToggle';
 
 const TEAM_LABEL = { home: 'Heim', away: 'Gast' } as const;
 
-const ZONE_STEPS = new Set<ClickStep['kind']>([
-  'SERVE_START',
-  'SERVE_LANDING',
-  'ATTACK_START',
-  'ATTACK_LANDING',
-  'BLOCK_TOUCH',
-  'BLOCK_LANDING',
-]);
+// Main 9-zone court grid is clickable for these — SERVE_START and BLOCK_TOUCH have their
+// own dedicated strips (behind-the-baseline / along-the-net) instead, see CourtClickArea.
+const ZONE_STEPS = new Set<ClickStep['kind']>(['SERVE_LANDING', 'ATTACK_START', 'ATTACK_LANDING', 'BLOCK_LANDING']);
 const SUBTYPE_STEPS = new Set<ClickStep['kind']>(['SERVE_START', 'SERVE_LANDING', 'SERVE_GRADE']);
 const GRADE_STEPS = new Set<ClickStep['kind']>(['SERVE_GRADE', 'RECEPTION_GRADE', 'ATTACK_GRADE', 'BLOCK_GRADE']);
+// Pairs that get a connecting arrow drawn once both points are clicked.
+const START_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_START', 'ATTACK_START', 'BLOCK_TOUCH']);
+const END_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_LANDING', 'ATTACK_LANDING', 'BLOCK_LANDING']);
 
 function promptFor(step: ClickStep): string {
   switch (step.kind) {
@@ -134,9 +132,11 @@ export function ClickScoutWindow() {
       ? targetStep.team
       : null;
   const serveStartTeam = targetStep.kind === 'SERVE_START' ? session.servingTeam : undefined;
+  const blockAreaTeam = targetStep.kind === 'BLOCK_TOUCH' ? targetStep.team : undefined;
+  const clickRole = START_CLICK_KINDS.has(targetStep.kind) ? 'start' : END_CLICK_KINDS.has(targetStep.kind) ? 'end' : null;
 
   return (
-    <div className="relative flex h-full w-full max-w-5xl flex-col gap-4">
+    <div className="relative flex h-full w-full flex-col gap-4">
       {pointFlash !== null && (
         <div
           className={cn(
@@ -168,7 +168,9 @@ export function ClickScoutWindow() {
           rotationHome={session.rotationHome}
           rotationAway={session.rotationAway}
           zoneClickActive={zoneClickActive}
+          clickRole={clickRole}
           serveStartTeam={serveStartTeam}
+          blockAreaTeam={blockAreaTeam}
           activePlayerSide={activePlayerSide}
           onZoneClick={(zone, subzone) => apply(target.clickZone(zone, subzone))}
           onOutOfBounds={() => apply(target.clickOutOfBounds())}
