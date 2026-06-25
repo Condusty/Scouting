@@ -109,6 +109,9 @@ function TeamHalf({
   onPlayerClick,
   onTrailPoint,
   onClearTrail,
+  blockActive,
+  blockZones,
+  onBlockPick,
 }: {
   team: TeamSide;
   grid: number[][];
@@ -123,8 +126,12 @@ function TeamHalf({
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
   onTrailPoint: (xPct: number, yPct: number) => void;
   onClearTrail: () => void;
+  blockActive: boolean;
+  blockZones: number[];
+  onBlockPick: (zone: number, subzone?: Subzone) => void;
 }) {
   const [marks, setMarks] = useState<Mark[]>([]);
+  const [blockMarks, setBlockMarks] = useState<Mark[]>([]);
   const reportTrail = useDualClick(rowRef, onTrailPoint);
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -146,6 +153,24 @@ function TeamHalf({
     onZoneClick(zone, subzone, team);
   };
 
+  const handleBlockClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!blockActive) return;
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xFrac = (e.clientX - rect.left) / rect.width;
+    const yFrac = (e.clientY - rect.top) / rect.height;
+    const row = Math.min(2, Math.max(0, Math.floor(yFrac * 3)));
+    const zone = blockZones[row];
+    const subzone = quadrant(xFrac, (yFrac * 3) % 1);
+
+    const id = ++markId;
+    setBlockMarks((prev) => [...prev, { id, left: xFrac * 100, top: yFrac * 100 }]);
+    window.setTimeout(() => setBlockMarks((prev) => prev.filter((m) => m.id !== id)), 600);
+
+    reportTrail(e);
+    onBlockPick(zone, subzone);
+  };
+
   return (
     <div className="flex h-full flex-col gap-2">
       <div
@@ -164,6 +189,20 @@ function TeamHalf({
               : { left: `${attackLineFrac * 100}%`, borderLeftWidth: 2 }
           }
         />
+        {/* Block area is overlaid directly on the court at the net edge (not a separate reserved
+            strip) so there's no empty gap between court and net when it's inactive. */}
+        <div
+          onClick={handleBlockClick}
+          style={{ width: '16%' }}
+          className={cn(
+            'absolute inset-y-0 z-10 cursor-crosshair rounded-sm border-2 border-dashed border-amber-400/60 bg-amber-500/10 transition-colors hover:bg-amber-500/20',
+            team === 'home' ? 'right-0' : 'left-0',
+            !blockActive && 'invisible',
+          )}
+          title={`Blockbarren — Berührpunkt am Netz (${team === 'home' ? 'Heim' : 'Gast'})`}
+        >
+          <Marks marks={blockMarks} />
+        </div>
         <Marks marks={marks} />
         {[1, 2, 3, 4, 5, 6].map((position) => {
           const shirt = shirtAtPosition(lineup, rotation, position);
@@ -345,26 +384,11 @@ export function CourtClickArea({
             onPlayerClick={onPlayerClick}
             onTrailPoint={handleTrailPoint}
             onClearTrail={clearTrail}
-          />
-          <EdgeStrip
-            active={blockAreaTeam === 'home'}
-            title="Blockbarren — Berührpunkt am Netz (Heim)"
-            className="w-6 border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
-            zones={HOME_FRONT_ZONES}
-            rowRef={rowRef}
-            onPick={onBlockAreaClick}
-            onTrailPoint={handleTrailPoint}
+            blockActive={blockAreaTeam === 'home'}
+            blockZones={HOME_FRONT_ZONES}
+            onBlockPick={onBlockAreaClick}
           />
           <div className="w-1.5 shrink-0 self-stretch rounded bg-sky-500" />
-          <EdgeStrip
-            active={blockAreaTeam === 'away'}
-            title="Blockbarren — Berührpunkt am Netz (Gast)"
-            className="w-6 border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
-            zones={AWAY_FRONT_ZONES}
-            rowRef={rowRef}
-            onPick={onBlockAreaClick}
-            onTrailPoint={handleTrailPoint}
-          />
           <TeamHalf
             team="away"
             grid={AWAY_GRID}
@@ -379,6 +403,9 @@ export function CourtClickArea({
             onPlayerClick={onPlayerClick}
             onTrailPoint={handleTrailPoint}
             onClearTrail={clearTrail}
+            blockActive={blockAreaTeam === 'away'}
+            blockZones={AWAY_FRONT_ZONES}
+            onBlockPick={onBlockAreaClick}
           />
           <EdgeStrip
             active={serveStartTeam === 'away'}

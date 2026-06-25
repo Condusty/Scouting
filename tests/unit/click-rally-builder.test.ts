@@ -120,11 +120,9 @@ describe('click-rally-builder', () => {
     b = b.clickPlayer(7).skipGrade();
     if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
     b = b.clickPlayer(9).skipZone().clickZone(5).clickGrade('/'); // attack blocked
-    expect(b.step.kind).toBe('BLOCK_COUNT');
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
+    expect(b.step.kind).toBe('BLOCK_PLAYER'); // single blocker assumed by default, no count gate
+    if (b.step.kind !== 'BLOCK_PLAYER') throw new Error('unreachable');
     expect(b.step.team).toBe('home'); // server's team blocks the away attacker
-    b = b.clickBlockCount(1);
-    expect(b.step.kind).toBe('BLOCK_PLAYER');
     b = b.clickPlayer(3);
     expect(b.step.kind).toBe('BLOCK_TOUCH');
     b = b.clickZone(2);
@@ -144,8 +142,8 @@ describe('click-rally-builder', () => {
     b = b.clickPlayer(7).skipGrade();
     if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
     b = b.clickPlayer(9).skipZone().clickZone(5).clickGrade('!'); // covered
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
-    b = b.clickBlockCount(1).clickPlayer(3).clickZone(2).clickZone(9).clickGrade('-'); // touched, rally continues
+    if (b.step.kind !== 'BLOCK_PLAYER') throw new Error('unreachable');
+    b = b.clickPlayer(3).clickZone(2).clickZone(9).clickGrade('-'); // touched, rally continues
     if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER after non-killing block');
     expect(b.step.team).toBe('home'); // blocking team now attacks back
     b = b.clickPlayer(4).skipZone().clickZone(6).clickGrade('#');
@@ -154,21 +152,12 @@ describe('click-rally-builder', () => {
     expect(outcome.pointTeam).toBe('home');
   });
 
-  it('block count 0: no block recorded, ball simply crosses back to the defending team', () => {
+  it('clickBlockCount is a no-op outside of a block sub-action (no gate to bypass)', () => {
     let b = createClickRallyBuilder('home', 1);
-    b = b.clickZone(1).clickZone(5).skipGrade();
-    b = b.clickPlayer(7).skipGrade();
-    if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
-    b = b.clickPlayer(9).skipZone().clickZone(5).clickGrade('!');
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
-    b = b.clickBlockCount(0);
-    if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
-    expect(b.step.team).toBe('home');
-    b = b.clickPlayer(4).skipZone().clickZone(6).clickGrade('#');
-    if (b.step.kind !== 'RALLY_DONE') throw new Error('unreachable');
-    const { actions, outcome } = done(b.step.codeString);
-    expect(actions.filter((a) => a.skill === 'B')).toHaveLength(0);
-    expect(outcome.pointTeam).toBe('home');
+    expect(b.blockersRemaining).toBe(0);
+    const unchanged = b.clickBlockCount(2);
+    expect(unchanged.step).toEqual(b.step);
+    expect(unchanged.blockersRemaining).toBe(0);
   });
 
   it('block invasion (/): no further block action, point still goes to the attacking team', () => {
@@ -177,22 +166,25 @@ describe('click-rally-builder', () => {
     b = b.clickPlayer(7).skipGrade();
     if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
     b = b.clickPlayer(9).skipZone().clickZone(5).clickGrade('/');
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
-    b = b.clickBlockCount(1).clickPlayer(3).clickZone(2).clickZone(9).clickGrade('/');
+    if (b.step.kind !== 'BLOCK_PLAYER') throw new Error('unreachable');
+    b = b.clickPlayer(3).clickZone(2).clickZone(9).clickGrade('/');
     expect(b.step.kind).toBe('RALLY_DONE');
     if (b.step.kind !== 'RALLY_DONE') throw new Error('unreachable');
     const { outcome } = done(b.step.codeString);
     expect(outcome.pointTeam).toBe('away'); // away attacked, home's block invaded -> point to away
   });
 
-  it('two-blocker count: collects two separate block player+zone+grade entries', () => {
+  it('two-blocker count: bumping the count mid-flow (before the first grade) asks for a second blocker', () => {
     let b = createClickRallyBuilder('home', 1);
     b = b.clickZone(1).clickZone(5).skipGrade();
     b = b.clickPlayer(7).skipGrade();
     if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
     b = b.clickPlayer(9).skipZone().clickZone(5).clickGrade('!');
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
-    b = b.clickBlockCount(2).clickPlayer(3).clickZone(2).clickZone(9).clickGrade('-');
+    if (b.step.kind !== 'BLOCK_PLAYER') throw new Error('unreachable');
+    expect(b.blockersRemaining).toBe(1); // default
+    b = b.clickBlockCount(2); // declare a second blocker before finishing this one
+    expect(b.step.kind).toBe('BLOCK_PLAYER'); // doesn't gate/advance anything by itself
+    b = b.clickPlayer(3).clickZone(2).clickZone(9).clickGrade('-');
     expect(b.step.kind).toBe('BLOCK_PLAYER'); // second blocker
     b = b.clickPlayer(14).clickZone(2).clickZone(9).clickGrade('#');
     expect(b.step.kind).toBe('RALLY_DONE');
@@ -211,11 +203,9 @@ describe('click-rally-builder', () => {
     expect(b.step.kind).toBe('ATTACK_START');
     expect(b.pendingPlayer).toBe(9);
     b = b.clickBlockTouch(2); // click the block area directly instead of an attack landing zone
-    expect(b.step.kind).toBe('BLOCK_COUNT');
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
+    expect(b.step.kind).toBe('BLOCK_PLAYER'); // single blocker assumed by default, no count gate
+    if (b.step.kind !== 'BLOCK_PLAYER') throw new Error('unreachable');
     expect(b.step.team).toBe('home'); // defending team blocks
-    b = b.clickBlockCount(1);
-    expect(b.step.kind).toBe('BLOCK_PLAYER');
     b = b.clickPlayer(3); // touch zone (2) is already captured, jumps straight to BLOCK_LANDING
     expect(b.step.kind).toBe('BLOCK_LANDING');
     b = b.clickZone(9).clickGrade('#');
@@ -223,23 +213,6 @@ describe('click-rally-builder', () => {
     const { actions, outcome } = done(b.step.codeString);
     expect(actions[2]).toMatchObject({ team: 'away', skill: 'A', playerNumber: 9, startZone: null, endZone: null, effect: '!' });
     expect(actions[3]).toMatchObject({ team: 'home', skill: 'B', playerNumber: 3, startZone: 2, endZone: 9, effect: '#' });
-    expect(outcome.pointTeam).toBe('home');
-  });
-
-  it('clickBlockTouch then clickBlockCount(0): falls back to a normal attack continuation', () => {
-    let b = createClickRallyBuilder('home', 1);
-    b = b.clickZone(1).clickZone(5).skipGrade();
-    b = b.clickPlayer(7).skipGrade();
-    if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER');
-    b = b.clickPlayer(9).clickBlockTouch(2);
-    if (b.step.kind !== 'BLOCK_COUNT') throw new Error('unreachable');
-    b = b.clickBlockCount(0);
-    if (b.step.kind !== 'ATTACK_PLAYER') throw new Error('expected ATTACK_PLAYER (ball crosses back)');
-    expect(b.step.team).toBe('home');
-    b = b.clickPlayer(4).skipZone().clickZone(6).clickGrade('#');
-    if (b.step.kind !== 'RALLY_DONE') throw new Error('unreachable');
-    const { actions, outcome } = done(b.step.codeString);
-    expect(actions.filter((a) => a.skill === 'B')).toHaveLength(0);
     expect(outcome.pointTeam).toBe('home');
   });
 

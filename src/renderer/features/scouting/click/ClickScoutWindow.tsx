@@ -21,7 +21,7 @@ const SUBTYPE_STEPS = new Set<ClickStep['kind']>(['SERVE_START', 'SERVE_LANDING'
 const GRADE_STEPS = new Set<ClickStep['kind']>(['SERVE_GRADE', 'RECEPTION_GRADE', 'ATTACK_GRADE', 'BLOCK_GRADE']);
 // Evaluation buttons are visible the whole time an action is in progress, not just at its
 // dedicated "_GRADE" step — these are the only steps with no action in flight to grade.
-const NO_PENDING_STEPS = new Set<ClickStep['kind']>(['RECEPTION', 'ATTACK_PLAYER', 'BLOCK_PLAYER', 'BLOCK_COUNT', 'RALLY_DONE']);
+const NO_PENDING_STEPS = new Set<ClickStep['kind']>(['RECEPTION', 'ATTACK_PLAYER', 'BLOCK_PLAYER', 'RALLY_DONE']);
 // Pairs that get a connecting arrow drawn once both points are clicked.
 const START_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_START', 'ATTACK_START', 'BLOCK_TOUCH']);
 const END_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_LANDING', 'ATTACK_LANDING', 'BLOCK_LANDING']);
@@ -59,8 +59,6 @@ function promptFor(step: ClickStep): string {
       return 'Klick Landepunkt des Angriffs';
     case 'ATTACK_GRADE':
       return 'Bewertung Angriff (optional — weiterklicken übernimmt Standardwert)';
-    case 'BLOCK_COUNT':
-      return `Anzahl Blockspieler (${TEAM_LABEL[step.team]})`;
     case 'BLOCK_PLAYER':
       return `Klick Blockspieler (${TEAM_LABEL[step.team]})`;
     case 'BLOCK_TOUCH':
@@ -231,7 +229,9 @@ export function ClickScoutWindow() {
             onSkip={() => apply(activeBuilder.skipGrade())}
           />
         )}
-        {step.kind === 'BLOCK_COUNT' && <BlockCountBar onPick={(n) => apply(activeBuilder.clickBlockCount(n))} />}
+        {activeBuilder.blockersRemaining > 0 && (
+          <BlockCountBar onPick={(n) => apply(activeBuilder.clickBlockCount(n))} />
+        )}
       </div>
 
       {error !== null && <div className="px-1 text-xs text-red-400">{error}</div>}

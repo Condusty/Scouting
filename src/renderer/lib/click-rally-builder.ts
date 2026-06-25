@@ -15,7 +15,6 @@ export type ClickStep =
   | { kind: 'ATTACK_START'; team: TeamSide }
   | { kind: 'ATTACK_LANDING'; team: TeamSide }
   | { kind: 'ATTACK_GRADE'; team: TeamSide }
-  | { kind: 'BLOCK_COUNT'; team: TeamSide }
   | { kind: 'BLOCK_PLAYER'; team: TeamSide }
   | { kind: 'BLOCK_TOUCH'; team: TeamSide }
   | { kind: 'BLOCK_LANDING'; team: TeamSide }
@@ -48,6 +47,8 @@ export interface ClickRallyBuilder {
   readonly step: ClickStep;
   /** Shirt number of the action currently being built (e.g. the attacker), or null between actions. */
   readonly pendingPlayer: number | null;
+  /** How many (more) blockers are expected this rally — 0 outside of a block sub-action. */
+  readonly blockersRemaining: number;
   clickZone(zone: number, subzone?: Subzone): ClickRallyBuilder;
   skipZone(): ClickRallyBuilder;
   clickOutOfBounds(): ClickRallyBuilder;
@@ -55,7 +56,13 @@ export interface ClickRallyBuilder {
   clickGrade(effect: Effect): ClickRallyBuilder;
   skipGrade(): ClickRallyBuilder;
   clickSubtype(subtype: string): ClickRallyBuilder;
-  clickBlockCount(n: 0 | 1 | 2): ClickRallyBuilder;
+  /**
+   * Declares there were 1 or 2 blockers on this attempt — purely informational, doesn't gate or
+   * advance the flow. A single blocker is assumed by default; call this any time before the
+   * current blocker's grade is finalized to also ask for a second BLOCK_PLAYER afterwards.
+   * No-op outside of a block sub-action (blockersRemaining === 0).
+   */
+  clickBlockCount(n: 1 | 2): ClickRallyBuilder;
   /**
    * Click directly on the block area while an attack is in progress (ATTACK_START/ATTACK_LANDING) —
    * the attack is finalized as touched ('!') and the flow jumps straight into picking the blocker(s),
@@ -138,7 +145,9 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
     const tokens = finalize(effect);
 
     if (finishedSkill === 'A' && (effect === '/' || effect === '!')) {
-      return next({ pending: null, tokens, step: { kind: 'BLOCK_COUNT', team: opposite(team) } });
+      // Single blocker assumed by default — clickBlockCount(2) can bump this before the
+      // blocker's own grade is finalized if a second player was involved.
+      return next({ pending: null, tokens, blockersRemaining: 1, step: { kind: 'BLOCK_PLAYER', team: opposite(team) } });
     }
 
     if (finishedSkill === 'S') {
@@ -176,6 +185,7 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
   return {
     step: ctx.step,
     pendingPlayer: ctx.pending?.player ?? null,
+    blockersRemaining: ctx.blockersRemaining,
 
     clickZone(zone, subzone) {
       if (ctx.pending === null) return wrap(ctx);
@@ -258,17 +268,8 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
     },
 
     clickBlockCount(n) {
-      if (ctx.step.kind !== 'BLOCK_COUNT') return wrap(ctx);
-      const team = ctx.step.team;
-      if (n === 0) {
-        // Reached via clickBlockTouch but corrected to "no block after all" — fall back to a
-        // normal attack continuation using the already-finalized ('!') attack token.
-        if (ctx.pendingBlockTouch !== null) {
-          return next({ pendingBlockTouch: null, step: afterAction(ctx.tokens, 'A', opposite(team)) });
-        }
-        return next({ step: { kind: 'ATTACK_PLAYER', team } });
-      }
-      return next({ blockersRemaining: n, step: { kind: 'BLOCK_PLAYER', team } });
+      if (ctx.blockersRemaining <= 0) return wrap(ctx); // not currently in a block sub-action
+      return next({ blockersRemaining: n });
     },
 
     clickBlockTouch(zone, subzone) {
@@ -280,7 +281,8 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
         pending: null,
         tokens,
         pendingBlockTouch: { zone, subzone: subzone ?? null },
-        step: { kind: 'BLOCK_COUNT', team: blockingTeam },
+        blockersRemaining: 1,
+        step: { kind: 'BLOCK_PLAYER', team: blockingTeam },
       });
     },
   };
