@@ -89,7 +89,7 @@ export function validateRally(
   parsed.subs.forEach((sub) => {
     // ParsedSub doesn't carry its own rawToken; reconstruct it the same way
     // the parser would have produced it, e.g. "C7:14" / "aC7:14".
-    const rawToken = `${sub.team === 'away' ? 'a' : ''}C${sub.out}:${sub.in}`;
+    const rawToken = `${sub.team === 'away' ? 'a' : ''}C${sub.isLibero ? 'L' : ''}${sub.out}:${sub.in}`;
     errors.push(...validateSub(sub, parsed, session, rawToken));
   });
 
