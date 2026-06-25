@@ -8,6 +8,7 @@ import { RotationDisplay } from '@renderer/features/scouting/RotationDisplay';
 import { CommandLine } from '@renderer/features/scouting/CommandLine';
 import { RallyLog } from '@renderer/features/scouting/RallyLog';
 import { NotationReferenceDialog } from '@renderer/features/scouting/NotationReferenceDialog';
+import { ClickScoutWindow } from '@renderer/features/scouting/click/ClickScoutWindow';
 import { Button } from '@renderer/components/ui/Button';
 
 export interface ScoutingViewProps {
@@ -89,7 +90,7 @@ export function ScoutingView({ matchId }: ScoutingViewProps) {
               <div className="flex-1 overflow-y-auto">
                 <RallyLog />
               </div>
-              <CommandLine />
+              {session.scoutingMode === 'click' ? <ClickScoutWindow /> : <CommandLine />}
             </div>
             <div className="w-64 shrink-0 overflow-y-auto border-l border-zinc-700">
               <RotationDisplay
