@@ -40,10 +40,14 @@ interface Ctx {
   pending: PendingToken | null;
   servingTeam: TeamSide;
   blockersRemaining: number;
+  /** Touch point captured via `clickBlockTouch` while still carried over to the first BLOCK_PLAYER pick. */
+  pendingBlockTouch: { zone: number; subzone: Subzone | null } | null;
 }
 
 export interface ClickRallyBuilder {
   readonly step: ClickStep;
+  /** Shirt number of the action currently being built (e.g. the attacker), or null between actions. */
+  readonly pendingPlayer: number | null;
   clickZone(zone: number, subzone?: Subzone): ClickRallyBuilder;
   skipZone(): ClickRallyBuilder;
   clickOutOfBounds(): ClickRallyBuilder;
@@ -52,6 +56,13 @@ export interface ClickRallyBuilder {
   skipGrade(): ClickRallyBuilder;
   clickSubtype(subtype: string): ClickRallyBuilder;
   clickBlockCount(n: 0 | 1 | 2): ClickRallyBuilder;
+  /**
+   * Click directly on the block area while an attack is in progress (ATTACK_START/ATTACK_LANDING) —
+   * the attack is finalized as touched ('!') and the flow jumps straight into picking the blocker(s),
+   * skipping the otherwise-required attack landing click. Mirrors Click&Scout: the block area is live
+   * the whole time you're on an attacker, not a separate step reached only after grading the attack.
+   */
+  clickBlockTouch(zone: number, subzone?: Subzone): ClickRallyBuilder;
 }
 
 function opposite(team: TeamSide): TeamSide {
@@ -164,6 +175,7 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
 
   return {
     step: ctx.step,
+    pendingPlayer: ctx.pending?.player ?? null,
 
     clickZone(zone, subzone) {
       if (ctx.pending === null) return wrap(ctx);
@@ -219,6 +231,11 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
         }
         case 'BLOCK_PLAYER': {
           const team = ctx.step.team;
+          const touch = ctx.pendingBlockTouch;
+          if (touch !== null) {
+            const pending: PendingToken = { ...startToken(team, 'B', shirtNumber), zone1: touch.zone, subzone1: touch.subzone };
+            return next({ pending, pendingBlockTouch: null, step: { kind: 'BLOCK_LANDING', team } });
+          }
           const pending = startToken(team, 'B', shirtNumber);
           return next({ pending, step: { kind: 'BLOCK_TOUCH', team } });
         }
@@ -244,9 +261,27 @@ function wrap(ctx: Ctx): ClickRallyBuilder {
       if (ctx.step.kind !== 'BLOCK_COUNT') return wrap(ctx);
       const team = ctx.step.team;
       if (n === 0) {
+        // Reached via clickBlockTouch but corrected to "no block after all" — fall back to a
+        // normal attack continuation using the already-finalized ('!') attack token.
+        if (ctx.pendingBlockTouch !== null) {
+          return next({ pendingBlockTouch: null, step: afterAction(ctx.tokens, 'A', opposite(team)) });
+        }
         return next({ step: { kind: 'ATTACK_PLAYER', team } });
       }
       return next({ blockersRemaining: n, step: { kind: 'BLOCK_PLAYER', team } });
+    },
+
+    clickBlockTouch(zone, subzone) {
+      if (ctx.pending === null || ctx.pending.skill !== 'A') return wrap(ctx);
+      if (ctx.step.kind !== 'ATTACK_START' && ctx.step.kind !== 'ATTACK_LANDING') return wrap(ctx);
+      const blockingTeam = opposite(ctx.pending.team);
+      const tokens = finalize('!');
+      return next({
+        pending: null,
+        tokens,
+        pendingBlockTouch: { zone, subzone: subzone ?? null },
+        step: { kind: 'BLOCK_COUNT', team: blockingTeam },
+      });
     },
   };
 }
@@ -258,5 +293,6 @@ export function createClickRallyBuilder(servingTeam: TeamSide, serverShirtNumber
     pending: startToken(servingTeam, 'S', serverShirtNumber),
     servingTeam,
     blockersRemaining: 0,
+    pendingBlockTouch: null,
   });
 }

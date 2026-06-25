@@ -19,9 +19,25 @@ const TEAM_LABEL = { home: 'Heim', away: 'Gast' } as const;
 const ZONE_STEPS = new Set<ClickStep['kind']>(['SERVE_LANDING', 'ATTACK_START', 'ATTACK_LANDING', 'BLOCK_LANDING']);
 const SUBTYPE_STEPS = new Set<ClickStep['kind']>(['SERVE_START', 'SERVE_LANDING', 'SERVE_GRADE']);
 const GRADE_STEPS = new Set<ClickStep['kind']>(['SERVE_GRADE', 'RECEPTION_GRADE', 'ATTACK_GRADE', 'BLOCK_GRADE']);
+// Evaluation buttons are visible the whole time an action is in progress, not just at its
+// dedicated "_GRADE" step — these are the only steps with no action in flight to grade.
+const NO_PENDING_STEPS = new Set<ClickStep['kind']>(['RECEPTION', 'ATTACK_PLAYER', 'BLOCK_PLAYER', 'BLOCK_COUNT', 'RALLY_DONE']);
 // Pairs that get a connecting arrow drawn once both points are clicked.
 const START_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_START', 'ATTACK_START', 'BLOCK_TOUCH']);
 const END_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_LANDING', 'ATTACK_LANDING', 'BLOCK_LANDING']);
+const ATTACK_IN_PROGRESS_KINDS = new Set<ClickStep['kind']>(['ATTACK_START', 'ATTACK_LANDING']);
+
+function opposite(team: TeamSide): TeamSide {
+  return team === 'home' ? 'away' : 'home';
+}
+
+/** Reverse-lookup: which rotational position (1–6, same numbering as DataVolley zones) is this shirt at right now? */
+function reverseZoneForShirt(lineup: number[], rotation: number, shirt: number): number | null {
+  for (let position = 1; position <= 6; position++) {
+    if (shirtAtPosition(lineup, rotation, position) === shirt) return position;
+  }
+  return null;
+}
 
 function promptFor(step: ClickStep): string {
   switch (step.kind) {
@@ -132,8 +148,17 @@ export function ClickScoutWindow() {
       ? targetStep.team
       : null;
   const serveStartTeam = targetStep.kind === 'SERVE_START' ? session.servingTeam : undefined;
-  const blockAreaTeam = targetStep.kind === 'BLOCK_TOUCH' ? targetStep.team : undefined;
+  // Block area is live the whole time an attack is in progress (defending team's strip), exactly
+  // like Click&Scout — not gated behind a separate step reached only after grading the attack.
+  const attackInProgress = ATTACK_IN_PROGRESS_KINDS.has(targetStep.kind);
+  const blockAreaTeam =
+    attackInProgress && 'team' in targetStep
+      ? opposite(targetStep.team)
+      : targetStep.kind === 'BLOCK_TOUCH'
+        ? targetStep.team
+        : undefined;
   const clickRole = START_CLICK_KINDS.has(targetStep.kind) ? 'start' : END_CLICK_KINDS.has(targetStep.kind) ? 'end' : null;
+  const showEvaluationBar = !NO_PENDING_STEPS.has(step.kind);
 
   return (
     <div className="relative flex h-full w-full flex-col gap-4">
@@ -172,7 +197,22 @@ export function ClickScoutWindow() {
           serveStartTeam={serveStartTeam}
           blockAreaTeam={blockAreaTeam}
           activePlayerSide={activePlayerSide}
-          onZoneClick={(zone, subzone) => apply(target.clickZone(zone, subzone))}
+          onZoneClick={(zone, subzone, clickedTeam) => {
+            // First click of an attack already landing in the opponent's court: use the attacker's
+            // own rotational position as the (skipped) start zone instead of demanding a second click.
+            if (targetStep.kind === 'ATTACK_START' && clickedTeam !== targetStep.team && target.pendingPlayer !== null) {
+              const lineup = targetStep.team === 'home' ? session.homeLineup : session.awayLineup;
+              const rotation = targetStep.team === 'home' ? session.rotationHome : session.rotationAway;
+              const startZone = reverseZoneForShirt(lineup, rotation, target.pendingPlayer);
+              const withStart = startZone !== null ? target.clickZone(startZone) : target;
+              apply(withStart.clickZone(zone, subzone));
+              return;
+            }
+            apply(target.clickZone(zone, subzone));
+          }}
+          onBlockAreaClick={(zone, subzone) =>
+            apply(attackInProgress ? activeBuilder.clickBlockTouch(zone, subzone) : target.clickZone(zone, subzone))
+          }
           onOutOfBounds={() => apply(target.clickOutOfBounds())}
           onPlayerClick={(_team, shirt) => apply(target.clickPlayer(shirt))}
         />
@@ -184,11 +224,14 @@ export function ClickScoutWindow() {
             Startposition überspringen
           </Button>
         )}
-        {SUBTYPE_STEPS.has(step.kind) && <ServeTypeBar onPick={(subtype) => apply(builder.clickSubtype(subtype))} />}
-        {GRADE_STEPS.has(step.kind) && (
-          <EvaluationBar onPick={(effect) => apply(builder.clickGrade(effect))} onSkip={() => apply(builder.skipGrade())} />
+        {SUBTYPE_STEPS.has(step.kind) && <ServeTypeBar onPick={(subtype) => apply(activeBuilder.clickSubtype(subtype))} />}
+        {showEvaluationBar && (
+          <EvaluationBar
+            onPick={(effect) => apply(activeBuilder.clickGrade(effect))}
+            onSkip={() => apply(activeBuilder.skipGrade())}
+          />
         )}
-        {step.kind === 'BLOCK_COUNT' && <BlockCountBar onPick={(n) => apply(builder.clickBlockCount(n))} />}
+        {step.kind === 'BLOCK_COUNT' && <BlockCountBar onPick={(n) => apply(activeBuilder.clickBlockCount(n))} />}
       </div>
 
       {error !== null && <div className="px-1 text-xs text-red-400">{error}</div>}

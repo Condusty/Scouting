@@ -17,12 +17,13 @@ export interface CourtClickAreaProps {
   clickRole: ClickRole;
   /** Set only during SERVE_START — that team's behind-the-baseline strip becomes active. */
   serveStartTeam?: TeamSide;
-  /** Set only during BLOCK_TOUCH — that team's along-the-net strip becomes active. */
+  /** Team whose along-the-net block area is live right now (during an attack, or the dedicated BLOCK_TOUCH step). */
   blockAreaTeam?: TeamSide;
   /** Whose on-court players are clickable right now (reception/attack/block player picks). */
   activePlayerSide: TeamSide | null;
   liberoShirt?: { home: number | null; away: number | null };
-  onZoneClick: (zone: number, subzone?: Subzone) => void;
+  onZoneClick: (zone: number, subzone: Subzone | undefined, team: TeamSide) => void;
+  onBlockAreaClick: (zone: number, subzone?: Subzone) => void;
   onOutOfBounds: () => void;
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
 }
@@ -45,6 +46,10 @@ const HOME_BACK_ZONES = [5, 6, 1]; // back column, rows top-to-bottom
 const AWAY_BACK_ZONES = [1, 6, 5];
 const HOME_FRONT_ZONES = [4, 3, 2]; // front (net-side) column, rows top-to-bottom
 const AWAY_FRONT_ZONES = [2, 3, 4];
+
+// Court square is sized from the viewport directly (not from ancestor flex sizing) so it stays
+// large and keeps a true 1:1 aspect regardless of how the surrounding chrome lays out.
+const SQUARE_SIZE = 'min(66vh, 34vw)';
 
 function quadrant(xFrac: number, yFrac: number): Subzone {
   if (xFrac < 0.5) return yFrac < 0.5 ? 'a' : 'c';
@@ -80,11 +85,8 @@ function Marks({ marks }: { marks: Mark[] }) {
   );
 }
 
-/** Reports both a local (zone-relative) click and a row-relative click (for the shared start→end arrow overlay). */
-function useDualClick(
-  rowRef: React.RefObject<HTMLDivElement | null>,
-  onTrailPoint: (xPct: number, yPct: number) => void,
-) {
+/** Reports a click's position relative to the shared row container (for the start→end arrow overlay). */
+function useDualClick(rowRef: React.RefObject<HTMLDivElement | null>, onTrailPoint: (xPct: number, yPct: number) => void) {
   return (e: React.MouseEvent) => {
     const rowRect = rowRef.current?.getBoundingClientRect();
     if (rowRect) {
@@ -117,7 +119,7 @@ function TeamHalf({
   playerClickable: boolean;
   liberoShirt?: number | null;
   rowRef: React.RefObject<HTMLDivElement | null>;
-  onZoneClick: (zone: number, subzone?: Subzone) => void;
+  onZoneClick: (zone: number, subzone: Subzone | undefined, team: TeamSide) => void;
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
   onTrailPoint: (xPct: number, yPct: number) => void;
   onClearTrail: () => void;
@@ -141,15 +143,16 @@ function TeamHalf({
     window.setTimeout(() => setMarks((prev) => prev.filter((m) => m.id !== id)), 600);
 
     reportTrail(e);
-    onZoneClick(zone, subzone);
+    onZoneClick(zone, subzone, team);
   };
 
   return (
     <div className="flex h-full flex-col gap-2">
       <div
         onClick={handleClick}
+        style={{ width: SQUARE_SIZE, height: SQUARE_SIZE }}
         className={cn(
-          'relative aspect-square flex-1 rounded-md border-2 border-white/30 bg-amber-900/10 transition-colors',
+          'relative shrink-0 rounded-md border-2 border-white/30 bg-amber-900/10 transition-colors',
           zoneClickable && 'cursor-crosshair hover:bg-amber-900/20',
         )}
       >
@@ -212,7 +215,7 @@ function EdgeStrip({
   className,
   zones,
   rowRef,
-  onZoneClick,
+  onPick,
   onTrailPoint,
 }: {
   active: boolean;
@@ -220,7 +223,7 @@ function EdgeStrip({
   className: string;
   zones: number[];
   rowRef: React.RefObject<HTMLDivElement | null>;
-  onZoneClick: (zone: number, subzone?: Subzone) => void;
+  onPick: (zone: number, subzone?: Subzone) => void;
   onTrailPoint: (xPct: number, yPct: number) => void;
 }) {
   const [marks, setMarks] = useState<Mark[]>([]);
@@ -241,7 +244,7 @@ function EdgeStrip({
     window.setTimeout(() => setMarks((prev) => prev.filter((m) => m.id !== id)), 600);
 
     reportTrail(e);
-    onZoneClick(zone, subzone);
+    onPick(zone, subzone);
   };
 
   return (
@@ -295,6 +298,7 @@ export function CourtClickArea({
   activePlayerSide,
   liberoShirt,
   onZoneClick,
+  onBlockAreaClick,
   onOutOfBounds,
   onPlayerClick,
 }: CourtClickAreaProps) {
@@ -311,20 +315,20 @@ export function CourtClickArea({
   const clearTrail = () => setTrail({ start: null, end: null });
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 overflow-auto">
       <div
-        className="flex h-full max-h-full items-stretch justify-center gap-4 rounded-lg border border-dashed border-red-500/0 p-6 transition-colors"
+        className="flex items-stretch justify-center gap-4 rounded-lg border border-dashed border-red-500/0 p-6 transition-colors"
         onClick={() => zoneClickActive && onOutOfBounds()}
         title={zoneClickActive ? 'Klick außerhalb des Feldes = Aus' : undefined}
       >
-        <div ref={rowRef} className="relative flex h-full items-stretch gap-2">
+        <div ref={rowRef} className="relative flex items-stretch gap-2">
           <EdgeStrip
             active={serveStartTeam === 'home'}
             title="Aufschlagstartpunkt (Heim)"
             className="w-10 border-sky-500/50 bg-sky-500/5 hover:bg-sky-500/10"
             zones={HOME_BACK_ZONES}
             rowRef={rowRef}
-            onZoneClick={onZoneClick}
+            onPick={(zone, subzone) => onZoneClick(zone, subzone, 'home')}
             onTrailPoint={handleTrailPoint}
           />
           <TeamHalf
@@ -348,7 +352,7 @@ export function CourtClickArea({
             className="w-6 border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
             zones={HOME_FRONT_ZONES}
             rowRef={rowRef}
-            onZoneClick={onZoneClick}
+            onPick={onBlockAreaClick}
             onTrailPoint={handleTrailPoint}
           />
           <div className="w-1.5 shrink-0 self-stretch rounded bg-sky-500" />
@@ -358,7 +362,7 @@ export function CourtClickArea({
             className="w-6 border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10"
             zones={AWAY_FRONT_ZONES}
             rowRef={rowRef}
-            onZoneClick={onZoneClick}
+            onPick={onBlockAreaClick}
             onTrailPoint={handleTrailPoint}
           />
           <TeamHalf
@@ -382,7 +386,7 @@ export function CourtClickArea({
             className="w-10 border-sky-500/50 bg-sky-500/5 hover:bg-sky-500/10"
             zones={AWAY_BACK_ZONES}
             rowRef={rowRef}
-            onZoneClick={onZoneClick}
+            onPick={(zone, subzone) => onZoneClick(zone, subzone, 'away')}
             onTrailPoint={handleTrailPoint}
           />
           <Arrow start={trail.start} end={trail.end} />
