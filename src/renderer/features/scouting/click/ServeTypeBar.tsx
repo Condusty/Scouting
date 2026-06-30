@@ -11,7 +11,7 @@ export function ServeTypeBar({ onPick }: { onPick: (subtype: string) => void }) 
   return (
     <div className="flex items-center gap-1.5">
       {SERVE_TYPES.map((t) => (
-        <Button key={t.value} type="button" variant="secondary" size="sm" onClick={() => onPick(t.value)}>
+        <Button key={t.value} type="button" variant="secondary" size="lg" onClick={() => onPick(t.value)}>
           {t.label}
         </Button>
       ))}

@@ -8,7 +8,6 @@ import { createClickRallyBuilder, type ClickRallyBuilder, type ClickStep } from 
 import { CourtClickArea } from '@renderer/features/scouting/click/CourtClickArea';
 import { EvaluationBar } from '@renderer/features/scouting/click/EvaluationBar';
 import { ServeTypeBar } from '@renderer/features/scouting/click/ServeTypeBar';
-import { BlockCountBar } from '@renderer/features/scouting/click/BlockCountBar';
 import { SubPanel } from '@renderer/features/scouting/click/SubPanel';
 import { LiberoToggle } from '@renderer/features/scouting/click/LiberoToggle';
 
@@ -21,7 +20,7 @@ const SUBTYPE_STEPS = new Set<ClickStep['kind']>(['SERVE_START', 'SERVE_LANDING'
 const GRADE_STEPS = new Set<ClickStep['kind']>(['SERVE_GRADE', 'RECEPTION_GRADE', 'ATTACK_GRADE', 'BLOCK_GRADE']);
 // Evaluation buttons are visible the whole time an action is in progress, not just at its
 // dedicated "_GRADE" step — these are the only steps with no action in flight to grade.
-const NO_PENDING_STEPS = new Set<ClickStep['kind']>(['RECEPTION', 'ATTACK_PLAYER', 'BLOCK_PLAYER', 'RALLY_DONE']);
+const NO_PENDING_STEPS = new Set<ClickStep['kind']>(['RECEPTION', 'ATTACK_PLAYER', 'RALLY_DONE']);
 // Pairs that get a connecting arrow drawn once both points are clicked.
 const START_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_START', 'ATTACK_START', 'BLOCK_TOUCH']);
 const END_CLICK_KINDS = new Set<ClickStep['kind']>(['SERVE_LANDING', 'ATTACK_LANDING', 'BLOCK_LANDING']);
@@ -59,8 +58,6 @@ function promptFor(step: ClickStep): string {
       return 'Klick Landepunkt des Angriffs';
     case 'ATTACK_GRADE':
       return 'Bewertung Angriff (optional — weiterklicken übernimmt Standardwert)';
-    case 'BLOCK_PLAYER':
-      return `Klick Blockspieler (${TEAM_LABEL[step.team]})`;
     case 'BLOCK_TOUCH':
       return 'Klick Berührpunkt am Netz';
     case 'BLOCK_LANDING':
@@ -70,6 +67,38 @@ function promptFor(step: ClickStep): string {
     case 'RALLY_DONE':
       return 'Ballwechsel abgeschlossen …';
   }
+}
+
+function SpecialPlayersBar({ session }: { session: ScoutingSession }) {
+  function getSpecials(team: TeamSide) {
+    const roster = team === 'home' ? session.homeRoster : session.awayRoster;
+    const lineup = team === 'home' ? session.homeLineup : session.awayLineup;
+    const libero = roster.find((p) => p.is_libero && lineup.includes(p.shirt_number));
+    const setters = roster.filter((p) => p.is_setter && lineup.includes(p.shirt_number));
+    return { libero, setters };
+  }
+  const home = getSpecials('home');
+  const away = getSpecials('away');
+  return (
+    <div className="flex gap-5 text-xs">
+      <div className="flex items-center gap-2">
+        <span className="text-zinc-500">Heim:</span>
+        {home.libero && <span className="rounded bg-amber-900/40 px-1.5 py-0.5 font-semibold text-amber-300">L #{home.libero.shirt_number}</span>}
+        {home.setters.map((p) => (
+          <span key={p.shirt_number} className="rounded bg-sky-900/40 px-1.5 py-0.5 font-semibold text-sky-300">Z #{p.shirt_number}</span>
+        ))}
+        {!home.libero && home.setters.length === 0 && <span className="text-zinc-600">—</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-zinc-500">Gast:</span>
+        {away.libero && <span className="rounded bg-amber-900/40 px-1.5 py-0.5 font-semibold text-amber-300">L #{away.libero.shirt_number}</span>}
+        {away.setters.map((p) => (
+          <span key={p.shirt_number} className="rounded bg-sky-900/40 px-1.5 py-0.5 font-semibold text-sky-300">Z #{p.shirt_number}</span>
+        ))}
+        {!away.libero && away.setters.length === 0 && <span className="text-zinc-600">—</span>}
+      </div>
+    </div>
+  );
 }
 
 function freshBuilder(session: ScoutingSession): ClickRallyBuilder {
@@ -142,9 +171,7 @@ export function ClickScoutWindow() {
 
   const zoneClickActive = ZONE_STEPS.has(targetStep.kind);
   const activePlayerSide =
-    targetStep.kind === 'RECEPTION' || targetStep.kind === 'ATTACK_PLAYER' || targetStep.kind === 'BLOCK_PLAYER'
-      ? targetStep.team
-      : null;
+    targetStep.kind === 'RECEPTION' || targetStep.kind === 'ATTACK_PLAYER' ? targetStep.team : null;
   const serveStartTeam = targetStep.kind === 'SERVE_START' ? session.servingTeam : undefined;
   // Block area is live the whole time an attack is in progress (defending team's strip), exactly
   // like Click&Scout — not gated behind a separate step reached only after grading the attack.
@@ -173,12 +200,15 @@ export function ClickScoutWindow() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <span className="text-lg font-semibold text-sky-300">{promptFor(step)}</span>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-1 min-w-0">
+          <span className="text-lg font-semibold text-sky-300">{promptFor(step)}</span>
+          <SpecialPlayersBar session={session} />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <SubPanel session={session} />
           <LiberoToggle session={session} />
-          <Button variant="secondary" size="sm" onClick={undo} disabled={history.length === 0 && rallies.length === 0}>
+          <Button variant="secondary" size="md" onClick={undo} disabled={history.length === 0 && rallies.length === 0}>
             Rückgängig
           </Button>
         </div>
@@ -218,7 +248,7 @@ export function ClickScoutWindow() {
 
       <div className="flex flex-wrap items-center justify-center gap-3">
         {step.kind === 'ATTACK_START' && (
-          <Button variant="ghost" size="sm" onClick={() => apply(builder.skipZone())}>
+          <Button variant="ghost" size="md" onClick={() => apply(builder.skipZone())}>
             Startposition überspringen
           </Button>
         )}
@@ -228,9 +258,6 @@ export function ClickScoutWindow() {
             onPick={(effect) => apply(activeBuilder.clickGrade(effect))}
             onSkip={() => apply(activeBuilder.skipGrade())}
           />
-        )}
-        {activeBuilder.blockersRemaining > 0 && (
-          <BlockCountBar onPick={(n) => apply(activeBuilder.clickBlockCount(n))} />
         )}
       </div>
 

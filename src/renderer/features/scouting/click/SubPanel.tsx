@@ -29,9 +29,16 @@ export function SubPanel({ session }: { session: ScoutingSession }) {
     setOpen(false);
   };
 
+  function roleTag(shirt: number) {
+    const p = roster.find((r) => r.shirt_number === shirt);
+    if (p?.is_libero) return ' L';
+    if (p?.is_setter) return ' Z';
+    return '';
+  }
+
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="secondary" size="md" onClick={() => setOpen(true)}>
         Wechsel
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Spielerwechsel">
@@ -39,7 +46,7 @@ export function SubPanel({ session }: { session: ScoutingSession }) {
           <div className="flex gap-2">
             <Button
               variant={team === 'home' ? 'primary' : 'secondary'}
-              size="sm"
+              size="md"
               onClick={() => {
                 setTeam('home');
                 reset();
@@ -49,7 +56,7 @@ export function SubPanel({ session }: { session: ScoutingSession }) {
             </Button>
             <Button
               variant={team === 'away' ? 'primary' : 'secondary'}
-              size="sm"
+              size="md"
               onClick={() => {
                 setTeam('away');
                 reset();
@@ -60,30 +67,30 @@ export function SubPanel({ session }: { session: ScoutingSession }) {
           </div>
           <div>
             <p className="mb-1 text-xs text-zinc-400">Spieler raus (auf dem Feld)</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {lineup.map((shirt) => (
                 <Button
                   key={shirt}
                   variant={out === shirt ? 'primary' : 'secondary'}
-                  size="sm"
+                  size="md"
                   onClick={() => setOut(shirt)}
                 >
-                  #{shirt}
+                  #{shirt}{roleTag(shirt)}
                 </Button>
               ))}
             </div>
           </div>
           <div>
             <p className="mb-1 text-xs text-zinc-400">Spieler rein (Bank)</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {bench.map((p) => (
                 <Button
                   key={p.shirt_number}
                   variant={inPlayer === p.shirt_number ? 'primary' : 'secondary'}
-                  size="sm"
+                  size="md"
                   onClick={() => setInPlayer(p.shirt_number)}
                 >
-                  #{p.shirt_number} {p.last_name}
+                  #{p.shirt_number} {p.last_name}{p.is_libero ? ' L' : p.is_setter ? ' Z' : ''}
                 </Button>
               ))}
             </div>

@@ -108,7 +108,7 @@ function TeamHalf({
   onZoneClick,
   onPlayerClick,
   onTrailPoint,
-  onClearTrail,
+  onBlockTouchPoint,
   blockActive,
   blockZones,
   onBlockPick,
@@ -125,7 +125,8 @@ function TeamHalf({
   onZoneClick: (zone: number, subzone: Subzone | undefined, team: TeamSide) => void;
   onPlayerClick: (team: TeamSide, shirtNumber: number) => void;
   onTrailPoint: (xPct: number, yPct: number) => void;
-  onClearTrail: () => void;
+  /** Block area click always resets the arrow trail to a new start at the touch point. */
+  onBlockTouchPoint: (xPct: number, yPct: number) => void;
   blockActive: boolean;
   blockZones: number[];
   onBlockPick: (zone: number, subzone?: Subzone) => void;
@@ -133,6 +134,7 @@ function TeamHalf({
   const [marks, setMarks] = useState<Mark[]>([]);
   const [blockMarks, setBlockMarks] = useState<Mark[]>([]);
   const reportTrail = useDualClick(rowRef, onTrailPoint);
+  const reportBlockTouch = useDualClick(rowRef, onBlockTouchPoint);
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!zoneClickable) return;
@@ -167,7 +169,7 @@ function TeamHalf({
     setBlockMarks((prev) => [...prev, { id, left: xFrac * 100, top: yFrac * 100 }]);
     window.setTimeout(() => setBlockMarks((prev) => prev.filter((m) => m.id !== id)), 600);
 
-    reportTrail(e);
+    reportBlockTouch(e);
     onBlockPick(zone, subzone);
   };
 
@@ -193,7 +195,7 @@ function TeamHalf({
             strip) so there's no empty gap between court and net when it's inactive. */}
         <div
           onClick={handleBlockClick}
-          style={{ width: '16%' }}
+          style={{ width: '8%' }}
           className={cn(
             'absolute inset-y-0 z-10 cursor-crosshair rounded-sm border-2 border-dashed border-amber-400/60 bg-amber-500/10 transition-colors hover:bg-amber-500/20',
             team === 'home' ? 'right-0' : 'left-0',
@@ -215,12 +217,11 @@ function TeamHalf({
               disabled={!playerClickable}
               onClick={(e) => {
                 e.stopPropagation();
-                onClearTrail();
                 onPlayerClick(team, shirt);
               }}
               style={{ left: `${left}%`, top: `${top}%` }}
               className={cn(
-                'absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-zinc-950/90 text-sm font-bold shadow-lg transition-colors',
+                'absolute flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-zinc-950/90 text-base font-bold shadow-lg transition-colors',
                 playerClickable
                   ? 'cursor-pointer border-sky-400 text-sky-300 hover:bg-sky-500/30 active:bg-sky-500/40'
                   : 'border-zinc-600 text-zinc-400',
@@ -236,7 +237,6 @@ function TeamHalf({
           type="button"
           onClick={() => {
             if (liberoShirt == null) return;
-            onClearTrail();
             onPlayerClick(team, liberoShirt);
           }}
           className="self-start rounded-full border border-amber-400 bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-500/20"
@@ -254,6 +254,7 @@ function EdgeStrip({
   className,
   zones,
   rowRef,
+  style,
   onPick,
   onTrailPoint,
 }: {
@@ -262,6 +263,7 @@ function EdgeStrip({
   className: string;
   zones: number[];
   rowRef: React.RefObject<HTMLDivElement | null>;
+  style?: React.CSSProperties;
   onPick: (zone: number, subzone?: Subzone) => void;
   onTrailPoint: (xPct: number, yPct: number) => void;
 }) {
@@ -289,8 +291,9 @@ function EdgeStrip({
   return (
     <div
       onClick={handleClick}
+      style={style}
       className={cn(
-        'relative h-full shrink-0 cursor-crosshair rounded-md border-2 border-dashed transition-colors',
+        'relative shrink-0 cursor-crosshair rounded-md border-2 border-dashed transition-colors',
         className,
         !active && 'invisible',
       )}
@@ -351,7 +354,7 @@ export function CourtClickArea({
     if (clickRole === 'start') setTrail({ start: { x, y }, end: null });
     else if (clickRole === 'end') setTrail((prev) => ({ start: prev.start, end: { x, y } }));
   };
-  const clearTrail = () => setTrail({ start: null, end: null });
+  const handleBlockTouchPoint = (x: number, y: number) => setTrail({ start: { x, y }, end: null });
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 overflow-auto">
@@ -360,13 +363,14 @@ export function CourtClickArea({
         onClick={() => zoneClickActive && onOutOfBounds()}
         title={zoneClickActive ? 'Klick außerhalb des Feldes = Aus' : undefined}
       >
-        <div ref={rowRef} className="relative flex items-stretch gap-2">
+        <div ref={rowRef} className="relative flex items-center gap-2">
           <EdgeStrip
             active={serveStartTeam === 'home'}
             title="Aufschlagstartpunkt (Heim)"
             className="w-10 border-sky-500/50 bg-sky-500/5 hover:bg-sky-500/10"
             zones={HOME_BACK_ZONES}
             rowRef={rowRef}
+            style={{ height: SQUARE_SIZE }}
             onPick={(zone, subzone) => onZoneClick(zone, subzone, 'home')}
             onTrailPoint={handleTrailPoint}
           />
@@ -383,12 +387,12 @@ export function CourtClickArea({
             onZoneClick={onZoneClick}
             onPlayerClick={onPlayerClick}
             onTrailPoint={handleTrailPoint}
-            onClearTrail={clearTrail}
+            onBlockTouchPoint={handleBlockTouchPoint}
             blockActive={blockAreaTeam === 'home'}
             blockZones={HOME_FRONT_ZONES}
             onBlockPick={onBlockAreaClick}
           />
-          <div className="w-1.5 shrink-0 self-stretch rounded bg-sky-500" />
+          <div className="w-1.5 shrink-0 rounded bg-sky-500" style={{ height: SQUARE_SIZE }} />
           <TeamHalf
             team="away"
             grid={AWAY_GRID}
@@ -402,7 +406,7 @@ export function CourtClickArea({
             onZoneClick={onZoneClick}
             onPlayerClick={onPlayerClick}
             onTrailPoint={handleTrailPoint}
-            onClearTrail={clearTrail}
+            onBlockTouchPoint={handleBlockTouchPoint}
             blockActive={blockAreaTeam === 'away'}
             blockZones={AWAY_FRONT_ZONES}
             onBlockPick={onBlockAreaClick}
@@ -413,6 +417,7 @@ export function CourtClickArea({
             className="w-10 border-sky-500/50 bg-sky-500/5 hover:bg-sky-500/10"
             zones={AWAY_BACK_ZONES}
             rowRef={rowRef}
+            style={{ height: SQUARE_SIZE }}
             onPick={(zone, subzone) => onZoneClick(zone, subzone, 'away')}
             onTrailPoint={handleTrailPoint}
           />

@@ -31,7 +31,7 @@ export function LiberoToggle({ session }: { session: ScoutingSession }) {
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="secondary" size="md" onClick={() => setOpen(true)}>
         Libero
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Libero-Wechsel">
@@ -39,7 +39,7 @@ export function LiberoToggle({ session }: { session: ScoutingSession }) {
           <div className="flex gap-2">
             <Button
               variant={team === 'home' ? 'primary' : 'secondary'}
-              size="sm"
+              size="md"
               onClick={() => {
                 setTeam('home');
                 reset();
@@ -49,7 +49,7 @@ export function LiberoToggle({ session }: { session: ScoutingSession }) {
             </Button>
             <Button
               variant={team === 'away' ? 'primary' : 'secondary'}
-              size="sm"
+              size="md"
               onClick={() => {
                 setTeam('away');
                 reset();
@@ -65,7 +65,7 @@ export function LiberoToggle({ session }: { session: ScoutingSession }) {
                 <Button
                   key={shirt}
                   variant={out === shirt ? 'primary' : 'secondary'}
-                  size="sm"
+                  size="md"
                   onClick={() => setOut(shirt)}
                 >
                   #{shirt}
@@ -80,7 +80,7 @@ export function LiberoToggle({ session }: { session: ScoutingSession }) {
                 <Button
                   key={p.shirt_number}
                   variant={inPlayer === p.shirt_number ? 'primary' : 'secondary'}
-                  size="sm"
+                  size="md"
                   onClick={() => setInPlayer(p.shirt_number)}
                 >
                   #{p.shirt_number} {p.last_name}
